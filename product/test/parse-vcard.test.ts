@@ -78,6 +78,14 @@ describe('parseVCard', () => {
     ]);
   });
 
+  it('parses LF-only vCard files', () => {
+    const card = ['BEGIN:VCARD', 'VERSION:3.0', 'FN:LF Person', 'TEL:1234', 'END:VCARD'].join('\n');
+
+    const result = parseVCard(card, { observedAt: OBSERVED_AT });
+
+    expect(result.contacts[0]?.displayName).toBe('LF Person');
+  });
+
   it('falls back to N when FN is missing', () => {
     const card = ['BEGIN:VCARD', 'VERSION:3.0', 'N:Sharma;Rahul;;;', 'TEL:1234', 'END:VCARD'].join(
       '\r\n',

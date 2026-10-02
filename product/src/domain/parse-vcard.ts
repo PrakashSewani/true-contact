@@ -24,7 +24,8 @@ type PropertyTuple = [string, Record<string, unknown>, string, unknown];
 
 export function parseVCard(text: string, options: ParseOptions): ParseResult {
   const result: ParseResult = { contacts: [], skipped: [] };
-  const blocks = text.match(CARD_PATTERN) ?? [];
+  const normalized = text.replace(/\r\n|\r|\n/g, '\r\n');
+  const blocks = normalized.match(CARD_PATTERN) ?? [];
 
   if (blocks.length === 0) {
     if (text.trim() !== '') {
