@@ -19,6 +19,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   (version bump, changelog, tag, GitHub release) with deploy-key push authentication.
 - Repository settings: `release:*` labels, `dev` branch protection, and a `main-protection`
   ruleset.
+- Contact-graph schema (migration `0001`): identities, canonical values, observations, links,
+  conflicts, append-only history, sources/imports, and usage counters.
+- vCard and CSV file imports: pure parsers in the domain package plus session-authenticated
+  intake (raw payload to R2, chunked queue processing).
+- Reconciliation pipeline: the queue consumer auto-links exact phone/email matches, proposes
+  name matches, absorbs non-conflicting values with provenance, and opens conflicts — canonical
+  data is never overwritten silently.
+- Contacts and review API: contact list and contact story, review queue, and the write actions
+  (confirm/reject a link, resolve a conflict, merge, split, edit canonical data) — each recorded
+  as a history event.
+- Web UI: contacts list, contact story, review queue, and imports page with pairing code and
+  free-tier usage.
+- vCard and CSV export of the canonical contact book.
+- WhatsApp connector: WXT Manifest V3 extension (popup pairing, chat-list capture) with the
+  pairing-code + bearer-token API (migration `0002`) and the extension import endpoint.
+- Free-tier usage limits: `FREE_IMPORT_LIMIT` variable (default 1000), an intake gate returning
+  `402` once lifetime imported-contact usage reaches the limit, and usage reporting on
+  `GET /api/imports`.
 
 ### Changed
 
