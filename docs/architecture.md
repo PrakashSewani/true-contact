@@ -19,15 +19,15 @@ adapter internals — the extension is one source adapter, not a dependency of t
 
 | Piece | Where | Responsibility |
 |---|---|---|
-| Web app | `product/src/web` | React SPA: register/sign-in and session guard today; the contact graph UI arrives in phase 2 |
-| API | `product/src/api` | Hono app: `/api/health`, better-auth handler at `/api/auth/*`, session-guarded routes |
+| Web app | `product/src/web` | React SPA: auth screens, contacts list and contact story, review queue, imports page (pairing + usage) |
+| API | `product/src/api` | Hono app: `/api/health`, better-auth handler at `/api/auth/*`, session-guarded product routes, bearer-token extension import |
 | Auth | `product/src/api/auth.ts` | better-auth on D1, email + password; email verification is deferred until an email provider exists |
-| Domain | `product/src/domain` | Pure contact logic: normalization, vCard/CSV file parsing (reconciliation next) |
-| Database | `product/src/db/schema.ts` | Drizzle schema: auth tables plus the contact graph (identities, observations, links, conflicts, history) |
-| Import pipeline | Worker + `IMPORTS_QUEUE` consumer | Chunked processing to stay inside Workers CPU limits |
+| Domain | `product/src/domain` | Pure contact logic: normalization, matching helpers, vCard/CSV parsing, vCard/CSV export rendering |
+| Database | `product/src/db/schema.ts` | Drizzle schema: auth tables plus the contact graph (identities, observations, links, conflicts, history, pairing) |
+| Import pipeline | `product/src/imports` + `IMPORTS_QUEUE` consumer | Intake, chunked reconciliation against the graph, limit enforcement |
 | Raw imports | `IMPORTS_BUCKET` (R2) | Temporary raw payloads; minimized retention, never the canonical store |
 | WhatsApp connector | `extension/` | Captures legitimately available WhatsApp Web contact data and pushes normalized batches |
-| Promo site | `site/` | Static marketing page; no product runtime |
+| Promo site | `site/` | Static Astro landing page; assets-only Worker `truecontact-site`; deploys independently (`pnpm deploy`) |
 
 Bindings in `product/wrangler.jsonc`: `DB` (D1), `IMPORTS_BUCKET` (R2), `IMPORTS_QUEUE`
 (Queues producer + consumer), `ASSETS` (SPA, `run_worker_first: ["/api/*"]`).
@@ -67,7 +67,8 @@ creates the graph:
 - `sources` + `imports` — connections and jobs (status, R2 raw key, stats).
 - `usage_operations` — per-account operation counts; limits enforced by query.
 
-Auth tables (`user`, `session`, `account`, `verification`) exist alongside.
+Auth tables (`user`, `session`, `account`, `verification`) exist alongside; migration `0002` adds
+the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
 
 ## Boundaries and invariants
 

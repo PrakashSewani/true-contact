@@ -339,3 +339,54 @@ bearer token — WhatsApp credentials never exist anywhere in the flow:
 - Changing limits is configuration, not code; billing stays out of v1 (D-004).
 
 **Confirmed by user:** 2026-10-02 (v1 scope D-004).
+
+## D-014: Promo site scope, content, and deploy
+
+**Date:** 2026-10-02
+
+**Decision:** The promo site is a single static Astro landing page whose section order is
+recorded in `docs/product.md` ("Promo site"), deployed as the assets-only Worker
+`truecontact-site` with the manual `pnpm deploy` procedure in the `ship-release` skill. It sends
+visitors to the product through one primary CTA ("Open TrueContact") that reads the product
+origin from a single site-side config constant (`site/src/config.ts`), overridable at build time
+via `PUBLIC_APP_URL` and filled at deploy (phase 4); custom domain and canonical URL are
+deploy-time decisions. The page requires no client-side JavaScript, makes no product API calls,
+and shares only brand constants from `shared/` (D-001 dependency rule).
+
+**Rejected**
+
+- Waitlist/form backend — v1 has no email provider (D-004) and it adds product surface for no
+  launch need.
+- CMS — the copy is fixed and source-controlled; there is nothing an editor would manage.
+- Multi-page IA (privacy/FAQ pages) in v1 — one page carries the story; split later if the copy
+  outgrows it.
+- Client-side interactivity — nothing on the page requires it; static stays fast and robust.
+
+**Confirmed by user:** pending — phase-3 stack review (this entry lands with the site build and
+the `docs/product.md` section it records).
+
+## D-015: Production hostnames (prakashsewani.com)
+
+**Date:** 2026-10-02
+
+**Decision:** The product and promo site deploy on Cloudflare Worker Custom Domains under the
+existing `prakashsewani.com` zone (already on Cloudflare; the apex and `www` stay the personal
+portfolio, email routing untouched):
+
+- Promo site: `truecontact.prakashsewani.com` (`truecontact-site` Worker).
+- Product app: `app.truecontact.prakashsewani.com` (`truecontact` Worker); `BETTER_AUTH_URL`
+  and the site's `PUBLIC_APP_URL` both use `https://app.truecontact.prakashsewani.com`.
+- The extension's `host_permissions` adds the app host; the `*.workers.dev` hostnames remain a
+  fallback for smoke tests. Custom Domains create their DNS records and certificates
+  automatically, including for the multi-level subdomain (the generated Advanced Certificate
+  needs no ACM subscription — verified against the Workers custom-domains docs).
+
+If a dedicated product domain is bought later: add it as a Custom Domain, redirect the old
+hosts, and update the three origin values (`BETTER_AUTH_URL`, `PUBLIC_APP_URL`, extension host
+permission).
+
+**Rejected:** the apex or `www` for the product (they serve the live portfolio); buying a second
+domain now (unneeded cost; the migration stays cheap).
+
+**Confirmed by user:** 2026-10-02 (chose the product-named scheme over `app.prakashsewani.com`
+and deferring to a future domain).

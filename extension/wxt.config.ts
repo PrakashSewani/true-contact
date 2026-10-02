@@ -6,6 +6,6 @@ export default defineConfig({
     name: 'TrueContact',
     description: 'Import contacts from WhatsApp Web into your TrueContact account.',
     permissions: ['storage'],
-    host_permissions: ['http://localhost:8787/*'],
+    host_permissions: ['http://localhost:8787/*', 'https://app.truecontact.prakashsewani.com/*'],
   },
 });

@@ -1,0 +1,249 @@
+:root {
+  color-scheme: light dark;
+  --paper: #f5f2ea;
+  --paper-deep: #ede9dd;
+  --surface: #fdfcf8;
+  --ink: #22231e;
+  --muted: #5a594f;
+  --faint: #6b695c;
+  --line: #d9d5c9;
+  --line-strong: #c3beac;
+  --green: #2f6f4f;
+  --green-strong: #275e43;
+  --green-soft: #e3ece5;
+  --on-green: #ffffff;
+  --amber: #8a5a1e;
+  --amber-soft: #f3e7d3;
+  --shadow: 0 1px 2px rgb(34 35 30 / 0.06), 0 10px 28px -14px rgb(34 35 30 / 0.28);
+  --radius: 14px;
+  --measure: 62ch;
+  --font-display:
+    "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #171714;
+    --paper-deep: #1e1e1a;
+    --surface: #21211d;
+    --ink: #f0eee5;
+    --muted: #a9a79b;
+    --faint: #8b897d;
+    --line: #34332d;
+    --line-strong: #45443b;
+    --green: #82c4a0;
+    --green-strong: #9bd3b5;
+    --green-soft: #223529;
+    --on-green: #10241a;
+    --amber: #d9a86a;
+    --amber-soft: #33291a;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 14px 36px -18px rgb(0 0 0 / 0.65);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: clamp(1.7rem, 3.5vw, 2.4rem);
+}
+
+p {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--green);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--green-strong);
+}
+
+::selection {
+  background: var(--green-soft);
+}
+
+:focus-visible {
+  outline: 2px dashed var(--green);
+  outline-offset: 2px;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+.wrap {
+  width: min(100% - 2.5rem, 70rem);
+  margin-inline: auto;
+}
+
+@media (max-width: 480px) {
+  .wrap {
+    width: min(100% - 2rem, 70rem);
+  }
+}
+
+.narrow {
+  max-width: 48rem;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100%;
+  z-index: 10;
+  padding: 0.6rem 1rem;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.65rem 1.15rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button-primary {
+  background: var(--green);
+  color: var(--on-green);
+}
+
+.button-primary:hover {
+  background: var(--green-strong);
+  color: var(--on-green);
+}
+
+.button-secondary {
+  border-color: var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+}
+
+.button-secondary:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.kicker {
+  margin-bottom: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.section {
+  padding-block: clamp(3.75rem, 9vw, 6.5rem);
+  border-top: 1px solid var(--line);
+}
+
+.section-lede {
+  margin-top: 1rem;
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.chip::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.chip--file::before {
+  background: var(--amber);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  background: var(--amber-soft);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--amber);
+}

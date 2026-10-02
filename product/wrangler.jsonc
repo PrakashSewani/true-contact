@@ -4,6 +4,12 @@
   "main": "src/api/index.ts",
   "compatibility_date": "2026-08-22",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "app.truecontact.prakashsewani.com",
+      "custom_domain": true
+    }
+  ],
   "vars": {
     "FREE_IMPORT_LIMIT": "1000"
   },
