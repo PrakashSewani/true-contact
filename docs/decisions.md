@@ -442,3 +442,19 @@ manual deploys).
 
 **Supersedes:** the manual-deploy clauses in D-002, D-014, and D-015. One-time resource
 creation, secrets, and rollbacks remain manual, documented in the `ship-release` skill.
+
+## D-017: Worker names aligned to the deployed Workers
+
+**Date:** 2026-10-02
+
+**Decision:** The launch setup created the dashboard Workers as `true-contact` (product) and
+`true-contact-site` (promo site). The repo configs (`product/wrangler.jsonc`,
+`site/wrangler.jsonc`) now use the same names so `wrangler` CLI commands (secrets, deployments,
+rollback) target the deployed Workers. D-016's table records the originally planned
+`truecontact` / `truecontact-site` names — the first deploys already worked because Workers
+Builds matches the connected Worker name automatically (`WRANGLER_CI_OVERRIDE_NAME`).
+
+**Why:** Workers cannot be renamed, so the repo aligns to the dashboard; equal names remove the
+silent trap where CLI commands fail with "Worker does not exist".
+
+**Confirmed by user:** 2026-10-02 (names set during the dashboard launch setup).

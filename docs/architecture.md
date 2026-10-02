@@ -27,7 +27,7 @@ adapter internals — the extension is one source adapter, not a dependency of t
 | Import pipeline | `product/src/imports` + `IMPORTS_QUEUE` consumer | Intake, chunked reconciliation against the graph, limit enforcement |
 | Raw imports | `IMPORTS_BUCKET` (R2) | Temporary raw payloads; minimized retention, never the canonical store |
 | WhatsApp connector | `extension/` | Captures legitimately available WhatsApp Web contact data and pushes normalized batches |
-| Promo site | `site/` | Static Astro landing page; assets-only Worker `truecontact-site`; deploys independently from `main` (D-016) |
+| Promo site | `site/` | Static Astro landing page; assets-only Worker `true-contact-site`; deploys independently from `main` (D-016) |
 
 Bindings in `product/wrangler.jsonc`: `DB` (D1), `IMPORTS_BUCKET` (R2), `IMPORTS_QUEUE`
 (Queues producer + consumer), `ASSETS` (SPA, `run_worker_first: ["/api/*"]`).
@@ -123,9 +123,9 @@ the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
 
 ## Production hostnames (D-015)
 
-- Product app: `app.truecontact.prakashsewani.com` → Worker `truecontact` (Custom Domain route
+- Product app: `app.truecontact.prakashsewani.com` → Worker `true-contact` (Custom Domain route
   in `product/wrangler.jsonc`).
-- Promo site: `truecontact.prakashsewani.com` → Worker `truecontact-site` (Custom Domain route
+- Promo site: `truecontact.prakashsewani.com` → Worker `true-contact-site` (Custom Domain route
   in `site/wrangler.jsonc`).
 - The WhatsApp extension's `host_permissions` include the app origin; the `*.workers.dev`
   hostnames remain a smoke-test fallback.
