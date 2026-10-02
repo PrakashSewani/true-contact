@@ -132,6 +132,7 @@ async function waitForWpp(client: WppLike): Promise<void> {
 }
 
 let wppContactCount = 0;
+let wppDedupedCount = 0;
 
 async function captureWppEntries(): Promise<BulkEntry[]> {
   const client = wpp();
@@ -189,7 +190,51 @@ async function captureWppEntries(): Promise<BulkEntry[]> {
     }
   }
 
-  return Array.from(entries.values());
+  return dedupeByPhone(Array.from(entries.values()));
+}
+
+// WhatsApp keeps one identity record per contact for the privacy id (@lid) and one for the
+// phone number (@c.us); both hold the same name and phone, so fold them into the @c.us record.
+function dedupeByPhone(entries: BulkEntry[]): BulkEntry[] {
+  const byPhone = new Map<string, BulkEntry>();
+  const order: string[] = [];
+  const withoutPhone: BulkEntry[] = [];
+  let deduped = 0;
+
+  for (const entry of entries) {
+    if (!entry.phone) {
+      withoutPhone.push(entry);
+      continue;
+    }
+
+    const existing = byPhone.get(entry.phone);
+
+    if (!existing) {
+      byPhone.set(entry.phone, entry);
+      order.push(entry.phone);
+      continue;
+    }
+
+    deduped += 1;
+
+    if (!existing.id.endsWith('@c.us') && entry.id.endsWith('@c.us')) {
+      byPhone.set(entry.phone, { ...entry, name: entry.name ?? existing.name });
+    } else if (!existing.name && entry.name) {
+      existing.name = entry.name;
+    }
+  }
+
+  wppDedupedCount = deduped;
+
+  const dedupedEntries: BulkEntry[] = [];
+  for (const phone of order) {
+    const entry = byPhone.get(phone);
+    if (entry) {
+      dedupedEntries.push(entry);
+    }
+  }
+
+  return dedupedEntries.concat(withoutPhone);
 }
 
 function findPhone(value: unknown, depth: number): string | null {
@@ -232,6 +277,7 @@ function debugCapture(rows: RowCapture[], bulk: BulkEntry[]): void {
       wpp: client
         ? { present: true, ready: safeReady(client), contacts: wppContactCount }
         : { present: false },
+      dedupedByPhone: wppDedupedCount,
       rowSample: rows.slice(0, 4),
       bulkSample: bulk.slice(0, 4).map((entry) => ({ id: entry.id, phone: entry.phone })),
       trace: traceFirstRow(),
