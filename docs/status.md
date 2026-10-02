@@ -27,14 +27,15 @@ releases v1.1.0/v1.2.0 deployed through Workers Builds (`true-contact` / `true-c
 
 **Verified (2026-10-02):** live `/api/health` ok; a real session scan pushed **493 unique
 contacts** (every externalId `@c.us`, no duplicates, Meta AI and self absent); `pnpm check` green
-on the merged stack.
+on the merged stack and on the UI slice (#42) — the built site HTML carries the brand theme
+(`#2f6f4f` / `#6fbf94` dark) with zero hydration.
 
 **Blocked by:** nothing.
 
-**In progress:** shared UI system (D-022, branch `ui/uniform-components`) — MUI theme in
-`@truecontact/ui`, app controls migrated, site renders the same buttons via React islands.
+**In review:** #41 (quiet connector console), #42 (shared UI system, D-022) — both target `dev`.
 
-**Next action:** finish + PR the UI slice, merge #41, then cut release 1.2.1 (release:minor).
+**Next action:** merge #41 and #42 to `dev`, then cut the **v1.2.1** release PR
+(`release:minor`) from `dev` to `main`.
 
 ---
 
