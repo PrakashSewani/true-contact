@@ -1,3 +1,5 @@
+import { MenuItem, TextField } from '@mui/material';
+import { Button } from '@truecontact/ui';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, type ContactDetail, type ContactSummary, errorMessage } from '../client';
@@ -93,24 +95,25 @@ export function ContactPage() {
       <div className="panel">
         <h2>Canonical</h2>
         <div className="inline-form">
-          <label>
-            Name
-            <input value={editName} onChange={(event) => setEditName(event.target.value)} />
-          </label>
-          <label>
-            Notes
-            <input value={editNotes} onChange={(event) => setEditNotes(event.target.value)} />
-          </label>
-          <button
-            type="button"
-            className="button-primary"
+          <TextField
+            label="Name"
+            value={editName}
+            onChange={(event) => setEditName(event.target.value)}
+          />
+          <TextField
+            label="Notes"
+            value={editNotes}
+            onChange={(event) => setEditNotes(event.target.value)}
+          />
+          <Button
+            variant="contained"
             disabled={busy}
             onClick={() =>
               run(() => api.updateContact(contact.id, { displayName: editName, notes: editNotes }))
             }
           >
             Save
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -126,33 +129,37 @@ export function ContactPage() {
                   {value.label ? ` · ${value.label}` : ''}
                 </span>
               </span>
-              <button
-                type="button"
-                className="button-secondary"
+              <Button
+                variant="outlined"
+                size="small"
                 disabled={busy}
                 onClick={() => run(() => api.deleteValue(contact.id, value.id))}
               >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
         <div className="inline-form">
-          <select
+          <TextField
+            select
+            label="Kind"
             value={newKind}
             onChange={(event) => setNewKind(event.target.value === 'email' ? 'email' : 'phone')}
+            sx={{ minWidth: 110 }}
           >
-            <option value="phone">Phone</option>
-            <option value="email">Email</option>
-          </select>
-          <input
+            <MenuItem value="phone">Phone</MenuItem>
+            <MenuItem value="email">Email</MenuItem>
+          </TextField>
+          <TextField
+            label="Value"
             value={newValue}
             placeholder={newKind === 'phone' ? '+91 98765 43210' : 'name@example.com'}
             onChange={(event) => setNewValue(event.target.value)}
           />
-          <button
-            type="button"
-            className="button-secondary"
+          <Button
+            variant="outlined"
+            size="small"
             disabled={busy || newValue.trim() === ''}
             onClick={() =>
               run(async () => {
@@ -162,7 +169,7 @@ export function ContactPage() {
             }
           >
             Add
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -177,22 +184,21 @@ export function ContactPage() {
                   {conflict.proposedValue}
                 </span>
                 <div className="toolbar">
-                  <button
-                    type="button"
-                    className="button-secondary"
+                  <Button
+                    variant="outlined"
+                    size="small"
                     disabled={busy}
                     onClick={() => run(() => api.resolveConflict(conflict.id, 'keep_existing'))}
                   >
                     Keep current
-                  </button>
-                  <button
-                    type="button"
-                    className="button-primary"
+                  </Button>
+                  <Button
+                    variant="contained"
                     disabled={busy}
                     onClick={() => run(() => api.resolveConflict(conflict.id, 'use_proposed'))}
                   >
                     Use proposed
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}
@@ -217,9 +223,9 @@ export function ContactPage() {
                   {observation.link.method}
                 </span>
               </span>
-              <button
-                type="button"
-                className="button-secondary"
+              <Button
+                variant="outlined"
+                size="small"
                 disabled={busy}
                 onClick={() =>
                   run(async () => {
@@ -229,7 +235,7 @@ export function ContactPage() {
                 }
               >
                 Split out
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -239,17 +245,23 @@ export function ContactPage() {
         <div className="panel">
           <h2>Merge</h2>
           <div className="inline-form">
-            <select value={mergeTarget} onChange={(event) => setMergeTarget(event.target.value)}>
-              <option value="">Choose a contact…</option>
+            <TextField
+              select
+              label="Merge with"
+              value={mergeTarget}
+              onChange={(event) => setMergeTarget(event.target.value)}
+              sx={{ minWidth: 220 }}
+            >
+              <MenuItem value="">Choose a contact…</MenuItem>
               {others.map((item) => (
-                <option key={item.id} value={item.id}>
+                <MenuItem key={item.id} value={item.id}>
                   {item.displayName}
-                </option>
+                </MenuItem>
               ))}
-            </select>
-            <button
-              type="button"
-              className="button-secondary"
+            </TextField>
+            <Button
+              variant="outlined"
+              size="small"
               disabled={busy || mergeTarget === ''}
               onClick={() =>
                 run(async () => {
@@ -259,7 +271,7 @@ export function ContactPage() {
               }
             >
               Merge into selected
-            </button>
+            </Button>
           </div>
         </div>
       )}

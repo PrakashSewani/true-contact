@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- Shared UI system (D-022): a new `@truecontact/ui` workspace package themes MUI with the brand
+  palette — the app's buttons, fields, and selects and the promo site's CTAs are now the same
+  components, in light and dark — and the repo owner is credited on the site footer and the app's
+  sign-in page.
+
+### Changed
+
+- Import limits are removed for the personal stage: no cap on imports, no `402` gate (usage
+  counters are still recorded; rate limiting and pricing are deferred to official shipping —
+  D-021).
+- WhatsApp connector: the temporary console diagnostics are gone now that capture is verified.
+
+### Fixed
+
+- WhatsApp connector: phone numbers are captured through WhatsApp Web's own in-page contact store
+  (WA-JS, Apache-2.0). A scan now pushes the saved address book only — `@lid`/`@c.us` records are
+  folded per phone number, and Meta AI and the account's own card are skipped; the DOM-based
+  capture remains the fallback.
+
 ## [1.2.0] - 2026-10-02
 
 ### Added

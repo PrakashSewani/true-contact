@@ -18,9 +18,10 @@ WhatsApp, and old exports. It gathers observations from each source, reconciles 
 canonical contact per person, and keeps the history of every change — with you in control of
 every decision.
 
-This connector is the WhatsApp source. It reads the contact information WhatsApp Web already
-renders (names, chat identifiers, and phone numbers where WhatsApp shows them) and pushes it to
-your own TrueContact account so it can be reconciled with everything else you've imported.
+This connector is the WhatsApp source. When you click "Scan", it reads the contact information
+WhatsApp Web has loaded in your browser — names, chat identifiers, and phone numbers, including
+WhatsApp's own local contact cache — and pushes it to your own TrueContact account so it can be
+reconciled with everything else you've imported.
 
 - No WhatsApp password, OTP, or session secrets — ever.
 - Pair once with a short code from your TrueContact account, then scan whenever you want a fresh
@@ -41,8 +42,9 @@ own TrueContact account.
 
 - **`storage`** — stores the TrueContact URL and the pairing token so the connector can push
   updates without asking you to pair again.
-- **Host permission `https://web.whatsapp.com/*`** — reads the contact list WhatsApp Web already
-  displays when you click "Scan". It does not read messages or any other WhatsApp data.
+- **Host permission `https://web.whatsapp.com/*`** — reads the contact information WhatsApp Web
+  has loaded in your browser (names, chat identifiers, phone numbers) when you click "Scan". It
+  does not read messages or any other WhatsApp data.
 - **Host permission `https://app.truecontact.prakashsewani.com/*`** — sends the captured contacts
   to the user's own TrueContact account over HTTPS.
 

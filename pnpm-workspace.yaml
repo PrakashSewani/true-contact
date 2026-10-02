@@ -3,6 +3,7 @@ packages:
   - extension
   - site
   - shared
+  - ui
 allowBuilds:
   esbuild: true
   workerd: true
@@ -11,3 +12,4 @@ minimumReleaseAgeExclude:
   - miniflare@5.20261001.0-alpha
   - vite@8.3.2
   - wrangler@4.146.0
+  - '@wppconnect/wa-js@4.6.1'

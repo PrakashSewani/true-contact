@@ -79,76 +79,6 @@ h2 {
   gap: 0.875rem;
 }
 
-.card label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--muted);
-}
-
-input {
-  padding: 0.5rem 0.625rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-}
-
-select {
-  padding: 0.5rem 0.625rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-}
-
-button {
-  font: inherit;
-  cursor: pointer;
-  border-radius: 0.375rem;
-}
-
-.button-primary {
-  padding: 0.55rem 0.75rem;
-  border: none;
-  background: var(--accent);
-  color: var(--accent-text);
-  font-weight: 600;
-}
-
-.button-primary:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.button-secondary {
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-}
-
-.button-secondary:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-a.button-primary,
-a.button-secondary {
-  display: inline-block;
-  text-decoration: none;
-}
-
-.link-button {
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  text-decoration: underline;
-}
-
 .page {
   min-height: 100vh;
   max-width: 60rem;
@@ -311,13 +241,6 @@ a.button-secondary {
   gap: 0.5rem;
   align-items: end;
   flex-wrap: wrap;
-}
-
-.inline-form label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--muted);
 }
 
 .back-link {

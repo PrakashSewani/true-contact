@@ -534,3 +534,82 @@ allowlist (no audit trail, awkward to change).
 
 **Confirmed by user:** 2026-10-02 ("personal only project… admin approves new joinings… free
 to the world once funded").
+
+## D-020: In-page WhatsApp capture via WA-JS for phone numbers
+
+**Date:** 2026-10-02
+
+**Decision:** The connector keeps its no-credentials posture but reads phone numbers through
+WhatsApp Web's own in-page store using **@wppconnect/wa-js 4.6.1** (Apache-2.0), bundled into the
+extension's main-world script:
+
+- On scan, the connector calls `WPP.contact.list()` and, for LID contacts without a number,
+  `WPP.contact.getPnLidEntry(id)` — WhatsApp's own LID→phone mapping. The existing DOM/React-state
+  capture remains as the fallback (names, and any numbers it can see).
+- Still no WhatsApp credentials, no QR/session login; nothing leaves the user's browser except the
+  push to their own account; message content is never read.
+- Trade-off accepted: coupling to WhatsApp Web internals (WA-JS tracks versions; if it breaks, the
+  connector still works — name-only — until updated).
+
+**Why:** live testing showed most chats arrive as `@lid` identifiers that carry no number in the
+DOM; the number lives in WhatsApp's contact store. Session-based libraries (Baileys,
+whatsapp-web.js, WAHA, Evolution) would require every user to hand over a WhatsApp session —
+breaking the product's core promise and, per 2026 reporting, putting users' own accounts at
+elevated ban risk. WA-JS runs against the session the user already has open, with no custody.
+
+**Supersedes:** D-012's "no access to WhatsApp's internal storage" clause — the store is read
+locally, in the user's own already-open browser session; everything else in D-012 stands.
+
+**Confirmed by user:** 2026-10-02 (chose the WA-JS upgrade over session-based libraries).
+
+## D-021: Personal stage — no import limits
+
+**Date:** 2026-10-02
+
+**Decision:** The free-tier import gate from D-013 is removed while TrueContact is a personal
+project: no account has an import cap. Usage operations are still recorded (the counters stay
+accurate for later), but the `FREE_IMPORT_LIMIT` variable and the `402` intake gate are gone,
+and the Imports page reports the running count without a ceiling. Rate limiting and pricing are
+deferred to the official-shipping backlog (revisit D-013 at that point).
+
+**Why:** the user's call — with access already gated behind admin approval (D-019), a second
+quota gate only gets in the way of the owner's own imports.
+
+**Supersedes:** D-013 (free-tier limit enforcement) for the personal stage.
+
+**Confirmed by user:** 2026-10-02 ("since we are a personal app now dont limit shit… add to
+backlog when officially shipping add rate limiting and pricing").
+
+## D-022: One UI system — MUI in the app, React-rendered MUI on the site
+
+**Date:** 2026-10-02
+
+**Decision:** The product web app adopts **MUI** (`@mui/material` 9.4.0 with
+`@emotion/react`/`@emotion/styled` 11.14.0) as its component system, and the promo site renders
+the **same components** through Astro's React integration (`@astrojs/react`) instead of
+copy-matching styles. A new workspace package `ui/` (`@truecontact/ui`) owns the shared theme
+(brand palette, radii, typography, light/dark schemes) and the components both frontends render:
+
+- App: `ThemeProvider` + `CssBaseline`; interactive controls (buttons, inputs, selects) move to
+  MUI components themed to the existing brand values (green `#2f6f4f` light / `#6fbf94` dark).
+- Site: CTAs and buttons become the shared component. Static usage renders server-side with no
+  hydration; a React island only ships JS where interaction is genuinely needed.
+- Both surfaces keep `prefers-color-scheme` light/dark behaviour through the shared theme.
+- Layout/marketing CSS stays; the hand-rolled `.button-*` styles retire in favour of the
+  component (`product/src/web/styles.css` keeps only structural styles).
+
+**Why:** buttons had drifted across three hand-rolled style systems (app CSS, site CSS, extension
+popup), and the user asked for uniform controls across site and app ("for site and app please use
+uniform buttons, use a ui framework like chakra or mui"). One shared component keeps a single
+source of truth; MUI was picked over Chakra for component breadth and ecosystem maturity; React
+islands were picked over token-sharing so the surfaces share components, not lookalikes.
+
+**Rejected:** copy-matching CSS between the two apps (drifts); tokens-only sharing (lookalikes,
+and the user explicitly chose literal reuse); Chakra UI 3.37.0 (smaller ecosystem, more churn);
+making the promo site a SPA (needless runtime for static marketing pages).
+
+**Trade-offs accepted:** the site build now pulls React + MUI at build time (output stays static
+HTML; only explicitly hydrated islands ship JS); the app bundle grows with MUI (~tens of kB).
+
+**Confirmed by user:** 2026-10-02 (chose "MUI" for the app and "React islands in Astro" for the
+site when asked).

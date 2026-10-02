@@ -1,4 +1,5 @@
 ---
+import { ThemedButton } from '@truecontact/ui';
 import { BRAND } from '@truecontact/shared';
 import { APP_URL, EXTENSION_URL } from '../config';
 import Layout from '../layouts/Layout.astro';
@@ -72,7 +73,15 @@ const faqs = [
         <a href="#privacy">Privacy</a>
         <a href="#faq">FAQ</a>
       </nav>
-      <a class="button button-primary head-cta" href={APP_URL}>Open TrueContact</a>
+      <ThemedButton
+        className="head-cta"
+        variant="contained"
+        size="small"
+        component="a"
+        href={APP_URL}
+      >
+        Open TrueContact
+      </ThemedButton>
     </div>
   </header>
 
@@ -88,8 +97,12 @@ const faqs = [
             is right.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href={APP_URL}>Open TrueContact</a>
-            <a class="button button-secondary" href="#how">See how it works</a>
+            <ThemedButton variant="contained" component="a" href={APP_URL}>
+              Open TrueContact
+            </ThemedButton>
+            <ThemedButton variant="outlined" component="a" href="#how">
+              See how it works
+            </ThemedButton>
           </div>
           <p class="hero-note">No WhatsApp credentials. No card to start.</p>
         </div>
@@ -240,7 +253,9 @@ const faqs = [
             stays: sources come and go, the identity graph is yours.
           </p>
           <p class="section-cta">
-            <a class="button button-secondary" href={EXTENSION_URL}>Add the connector to Chrome</a>
+            <ThemedButton variant="outlined" component="a" href={EXTENSION_URL}>
+              Add the connector to Chrome
+            </ThemedButton>
           </p>
         </div>
         <div class="pair">
@@ -266,7 +281,9 @@ const faqs = [
           be a decision you make, not a surprise.
         </p>
         <p class="section-cta">
-          <a class="button button-primary" href={APP_URL}>Open TrueContact</a>
+          <ThemedButton variant="contained" component="a" href={APP_URL}>
+            Open TrueContact
+          </ThemedButton>
         </p>
       </div>
     </section>
@@ -303,7 +320,10 @@ const faqs = [
         <a href="/privacy">Privacy policy</a>
         <a href={APP_URL}>Open TrueContact</a>
       </nav>
-      <p class="foot-note">Contact data is never sold or used for advertising.</p>
+      <p class="foot-note">
+        Built by <a href={BRAND.repository}>{BRAND.author}</a>. Contact data is never sold or used
+        for advertising.
+      </p>
     </div>
   </footer>
 </Layout>
@@ -357,11 +377,6 @@ const faqs = [
 
   .head-nav a:hover {
     color: var(--ink);
-  }
-
-  .head-cta {
-    padding-inline: 1rem;
-    font-size: 0.92rem;
   }
 
   @media (max-width: 700px) {

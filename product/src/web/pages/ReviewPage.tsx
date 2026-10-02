@@ -1,3 +1,5 @@
+import { TextField } from '@mui/material';
+import { Button } from '@truecontact/ui';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api, errorMessage, type ReviewConflict, type ReviewProposal } from '../client';
@@ -69,13 +71,9 @@ export function ReviewPage() {
       <div className="section-header">
         <h1>Review</h1>
         <div className="toolbar">
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => setVersion((value) => value + 1)}
-          >
+          <Button variant="outlined" size="small" onClick={() => setVersion((value) => value + 1)}>
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -93,30 +91,34 @@ export function ReviewPage() {
                   </span>
                 </div>
                 <div className="toolbar">
-                  <Link className="button-secondary" to={`/contacts/${conflict.identityId}`}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    component={Link}
+                    to={`/contacts/${conflict.identityId}`}
+                  >
                     Open
-                  </Link>
-                  <button
-                    type="button"
-                    className="button-secondary"
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
                     disabled={busyId === conflict.id}
                     onClick={() =>
                       run(conflict.id, () => api.resolveConflict(conflict.id, 'keep_existing'))
                     }
                   >
                     Keep current
-                  </button>
-                  <button
-                    type="button"
-                    className="button-primary"
+                  </Button>
+                  <Button
+                    variant="contained"
                     disabled={busyId === conflict.id}
                     onClick={() =>
                       run(conflict.id, () => api.resolveConflict(conflict.id, 'use_proposed'))
                     }
                   >
                     Use proposed
-                  </button>
-                  <input
+                  </Button>
+                  <TextField
                     placeholder="Custom value"
                     value={customValues[conflict.id] ?? ''}
                     onChange={(event) =>
@@ -125,10 +127,11 @@ export function ReviewPage() {
                         [conflict.id]: event.target.value,
                       }))
                     }
+                    sx={{ width: 180 }}
                   />
-                  <button
-                    type="button"
-                    className="button-secondary"
+                  <Button
+                    variant="outlined"
+                    size="small"
                     disabled={
                       busyId === conflict.id || (customValues[conflict.id] ?? '').trim() === ''
                     }
@@ -143,7 +146,7 @@ export function ReviewPage() {
                     }
                   >
                     Apply
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}
@@ -167,22 +170,21 @@ export function ReviewPage() {
                   </span>
                 </div>
                 <div className="toolbar">
-                  <button
-                    type="button"
-                    className="button-primary"
+                  <Button
+                    variant="contained"
                     disabled={busyId === proposal.id}
                     onClick={() => run(proposal.id, () => api.confirmLink(proposal.id))}
                   >
                     Same person
-                  </button>
-                  <button
-                    type="button"
-                    className="button-secondary"
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
                     disabled={busyId === proposal.id}
                     onClick={() => run(proposal.id, () => api.rejectLink(proposal.id))}
                   >
                     Not the same
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}

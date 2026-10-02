@@ -1,3 +1,4 @@
+import { Button } from '@truecontact/ui';
 import type { ChangeEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { api, errorMessage, type ImportJob } from '../client';
@@ -6,7 +7,7 @@ import { EXTENSION_STORE_URL } from '../config';
 export function ImportsPage() {
   const [version, setVersion] = useState(0);
   const [imports, setImports] = useState<ImportJob[] | null>(null);
-  const [usage, setUsage] = useState<{ importedContacts: number; limit: number } | null>(null);
+  const [usage, setUsage] = useState<{ importedContacts: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -125,13 +126,9 @@ export function ImportsPage() {
       <div className="section-header">
         <h1>Imports</h1>
         <div className="toolbar">
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => setVersion((value) => value + 1)}
-          >
+          <Button variant="outlined" size="small" onClick={() => setVersion((value) => value + 1)}>
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -149,11 +146,7 @@ export function ImportsPage() {
           disabled={busy}
           onChange={handleUpload}
         />
-        {usage && (
-          <p className="muted">
-            Free tier: {usage.importedContacts} of {usage.limit} imported contacts used.
-          </p>
-        )}
+        {usage && <p className="muted">{usage.importedContacts} contacts imported so far.</p>}
         <p className="muted">
           Large imports process in small background batches and can take a while — progress shows
           below, and a paused import can be resumed.
@@ -182,14 +175,9 @@ export function ImportsPage() {
             </span>
           </p>
         ) : (
-          <button
-            type="button"
-            className="button-secondary"
-            disabled={pairingBusy}
-            onClick={handlePairing}
-          >
+          <Button variant="contained" disabled={pairingBusy} onClick={handlePairing}>
             Generate pairing code
-          </button>
+          </Button>
         )}
       </div>
 
@@ -224,14 +212,14 @@ export function ImportsPage() {
                   {stalled ? 'paused' : job.status}
                 </span>
                 {stalled && (
-                  <button
-                    type="button"
-                    className="button-secondary"
+                  <Button
+                    variant="outlined"
+                    size="small"
                     disabled={busyId === job.id}
                     onClick={() => void handleResume(job.id)}
                   >
                     Resume processing
-                  </button>
+                  </Button>
                 )}
                 {job.error && <p className="error">{job.error}</p>}
               </li>
@@ -244,16 +232,17 @@ export function ImportsPage() {
         <h2>Danger zone</h2>
         <p className="muted">
           Delete all contacts, imports, and history from your account. This cannot be undone. Your
-          import-usage counter stays, since it tracks the free-tier limit.
+          usage counter stays — it keeps a running total.
         </p>
-        <button
-          type="button"
-          className="button-secondary"
+        <Button
+          variant="outlined"
+          color="error"
+          size="small"
           disabled={busyId === 'delete-all'}
           onClick={() => void handleDeleteAll()}
         >
           Delete all data
-        </button>
+        </Button>
       </div>
     </section>
   );

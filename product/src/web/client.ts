@@ -151,7 +151,7 @@ export const api = {
   imports: () =>
     request<{
       imports: ImportJob[];
-      usage: { importedContacts: number; limit: number };
+      usage: { importedContacts: number };
     }>('/api/imports'),
   startPairing: () =>
     request<{ pairing: { code: string; expiresAt: string } }>('/api/pairing/start', {

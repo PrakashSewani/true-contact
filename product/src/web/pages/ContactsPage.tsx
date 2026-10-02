@@ -1,3 +1,4 @@
+import { Button } from '@truecontact/ui';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api, type ContactSummary, errorMessage } from '../client';
@@ -42,9 +43,9 @@ export function ContactsPage() {
       <section className="empty-state">
         <h1>No contacts yet</h1>
         <p className="muted">Import a vCard or CSV file to build your contact graph.</p>
-        <Link className="button-primary" to="/imports">
+        <Button variant="contained" component={Link} to="/imports">
           Import contacts
-        </Link>
+        </Button>
       </section>
     );
   }
@@ -54,22 +55,18 @@ export function ContactsPage() {
       <div className="section-header">
         <h1>Contacts</h1>
         <div className="toolbar">
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => setVersion((value) => value + 1)}
-          >
+          <Button variant="outlined" size="small" onClick={() => setVersion((value) => value + 1)}>
             Refresh
-          </button>
-          <Link className="button-primary" to="/imports">
+          </Button>
+          <Button variant="contained" component={Link} to="/imports">
             Import
-          </Link>
-          <a className="button-secondary" href="/api/export/vcard" download>
+          </Button>
+          <Button variant="outlined" size="small" component="a" href="/api/export/vcard" download>
             Export vCard
-          </a>
-          <a className="button-secondary" href="/api/export/csv" download>
+          </Button>
+          <Button variant="outlined" size="small" component="a" href="/api/export/csv" download>
             Export CSV
-          </a>
+          </Button>
         </div>
       </div>
 

@@ -14,10 +14,6 @@ interface StoredSession {
 }
 
 export default defineBackground(() => {
-  browser.runtime.onInstalled.addListener(() => {
-    console.log('TrueContact connector installed.');
-  });
-
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const request = message as PopupMessage;
 
@@ -75,6 +71,8 @@ async function pair(apiBase: string, code: string): Promise<PairResult> {
   }
 }
 
+const BATCH_SIZE = 500;
+
 async function scan(apiBase: string): Promise<ScanResult> {
   const { session } = (await browser.storage.local.get('session')) as { session?: StoredSession };
 
@@ -101,21 +99,30 @@ async function scan(apiBase: string): Promise<ScanResult> {
     return { ok: false, error: emptyReason(capture?.diagnostics) };
   }
 
-  try {
-    const response = await fetch(`${trimBase(apiBase)}/api/imports/extension`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${session.token}`,
-      },
-      body: JSON.stringify({ source: 'whatsapp', contacts }),
-    });
+  let pushed = 0;
 
-    if (!response.ok) {
-      return { ok: false, error: await errorText(response) };
+  try {
+    for (let index = 0; index < contacts.length; index += BATCH_SIZE) {
+      const batch = contacts.slice(index, index + BATCH_SIZE);
+      const response = await fetch(`${trimBase(apiBase)}/api/imports/extension`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${session.token}`,
+        },
+        body: JSON.stringify({ source: 'whatsapp', contacts: batch }),
+      });
+
+      if (!response.ok) {
+        const reason = await errorText(response);
+        const suffix = `Pushed ${pushed} of ${contacts.length} contacts — ${reason}`;
+        return pushed > 0 ? { ok: false, error: suffix } : { ok: false, error: reason };
+      }
+
+      pushed += batch.length;
     }
 
-    return { ok: true, pushed: contacts.length, withPhone: capture?.diagnostics?.withPhone };
+    return { ok: true, pushed, withPhone: capture?.diagnostics?.withPhone };
   } catch (error) {
     return { ok: false, error: errorMessage(error) };
   }
@@ -128,6 +135,10 @@ function trimBase(apiBase: string): string {
 function emptyReason(diagnostics?: CaptureDiagnostics): string {
   if (!diagnostics) {
     return 'Could not read the WhatsApp tab — reload the page (F5) and try again.';
+  }
+
+  if (diagnostics.captureError) {
+    return `WhatsApp capture failed: ${diagnostics.captureError}`;
   }
 
   if (!diagnostics.strategy || diagnostics.rowCount === 0) {

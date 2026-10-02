@@ -1,3 +1,6 @@
+// Injects WhatsApp Web's own store utilities (Apache-2.0, WPPConnect/WA-JS). Runs only on
+// web.whatsapp.com and only reads contact data; no credentials or sessions are touched.
+import '@wppconnect/wa-js';
 import type { BulkEntry } from '../lib/messages';
 
 interface FiberLike {
@@ -16,7 +19,7 @@ export default defineContentScript({
   world: 'MAIN',
   runAt: 'document_idle',
   main() {
-    window.addEventListener('message', (event) => {
+    window.addEventListener('message', async (event) => {
       if (event.source !== window) {
         return;
       }
@@ -26,16 +29,37 @@ export default defineContentScript({
         return;
       }
 
-      window.postMessage(
-        {
-          source: 'truecontact-connector-page',
-          type: 'capture-result',
-          nonce: data.nonce,
-          rows: captureRowIds(),
-          bulk: captureBulk(),
-        },
-        '*',
-      );
+      try {
+        const wppEntries = await captureWppEntries();
+        const usingWpp = wppEntries.length > 0;
+        // When WA-JS answers, push exactly the address book — the DOM/chat-list capture is
+        // only a fallback for when the store is unavailable.
+        const rows = usingWpp ? [] : captureRows();
+        const bulk = usingWpp ? wppEntries : captureBulk();
+
+        window.postMessage(
+          {
+            source: 'truecontact-connector-page',
+            type: 'capture-result',
+            nonce: data.nonce,
+            rows,
+            bulk,
+          },
+          '*',
+        );
+      } catch (error) {
+        window.postMessage(
+          {
+            source: 'truecontact-connector-page',
+            type: 'capture-result',
+            nonce: data.nonce,
+            rows: [],
+            bulk: [],
+            error: error instanceof Error ? error.message : String(error),
+          },
+          '*',
+        );
+      }
     });
   },
 });
@@ -63,20 +87,249 @@ function phoneField(value: unknown): string | null {
   return number && server === 'c.us' ? `${number}@c.us` : null;
 }
 
-function captureRowIds(): (string | null)[] {
+const PHONE_KEYS = ['__x_phoneNumber', 'phoneNumber'];
+const RELATION_KEYS = ['contact', 'data', 'chat'];
+
+interface WppWid {
+  _serialized?: string;
+}
+
+interface WppContactModel {
+  id?: string | WppWid;
+  userid?: unknown;
+  pnForLid?: unknown;
+  name?: unknown;
+  pushname?: unknown;
+  shortName?: unknown;
+  formattedName?: unknown;
+  displayNameOrPnForLid?: unknown;
+}
+
+interface WppPnLidEntry {
+  phoneNumber?: WppWid;
+  contact?: { name?: string; shortName?: string; pushname?: string; verifiedName?: string };
+}
+
+interface WppLike {
+  isReady?: boolean;
+  conn?: {
+    getMyUserWid?: () => unknown;
+    getMyUserLid?: () => unknown;
+  };
+  contact?: {
+    list?: (options?: { onlyMyContacts?: boolean }) => Promise<WppContactModel[]>;
+    getPnLidEntry?: (contactId: string | WppWid) => Promise<WppPnLidEntry>;
+  };
+}
+
+function wpp(): WppLike | undefined {
+  return (window as unknown as { WPP?: WppLike }).WPP;
+}
+
+async function waitForWpp(client: WppLike): Promise<void> {
+  const deadline = Date.now() + 8000;
+
+  while (!safeReady(client) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+
+// Meta AI's WhatsApp number is a fixed, globally used value; it is not a person in the address book.
+const META_AI_ID = '13135550002@c.us';
+
+function ownContactIds(client: WppLike): Set<string> {
+  const ids = new Set<string>();
+
+  for (const getter of [client.conn?.getMyUserWid, client.conn?.getMyUserLid]) {
+    if (!getter) {
+      continue;
+    }
+
+    try {
+      const id = parseJid(jidString(getter.call(client.conn)) ?? '');
+      if (id) {
+        ids.add(id);
+      }
+    } catch {
+      // older WhatsApp builds may not expose the user id; self would just import once
+    }
+  }
+
+  return ids;
+}
+
+async function captureWppEntries(): Promise<BulkEntry[]> {
+  const client = wpp();
+  const list = client?.contact?.list;
+
+  if (!client || !list || !client.contact) {
+    return [];
+  }
+
+  await waitForWpp(client);
+
+  let contacts: WppContactModel[] = [];
+  try {
+    contacts = await list.call(client.contact, { onlyMyContacts: true });
+
+    if (contacts.length === 0) {
+      contacts = await list.call(client.contact, { onlyMyContacts: false });
+    }
+  } catch {
+    return [];
+  }
+
+  const skipIds = ownContactIds(client);
+  skipIds.add(META_AI_ID);
+
+  const entries = new Map<string, BulkEntry>();
+
+  for (const contact of contacts.slice(0, 3000)) {
+    try {
+      const id = parseJid(jidString(contact.id) ?? '');
+      if (!id) {
+        continue;
+      }
+
+      if (skipIds.has(id)) {
+        continue;
+      }
+
+      let phone =
+        phoneField(id) ?? phoneField(contact.pnForLid) ?? phoneField(contact.userid) ?? null;
+
+      if (!phone && id.endsWith('@lid') && client.contact.getPnLidEntry) {
+        try {
+          const entry = await client.contact.getPnLidEntry(id);
+          phone = phoneField(entry.phoneNumber);
+        } catch {
+          // per-contact lookup can fail; the contact is still imported name-only
+        }
+      }
+
+      const name = pickName(contact) ?? pickName(contact.displayNameOrPnForLid);
+
+      if (!name && !phone) {
+        continue;
+      }
+
+      entries.set(id, { id, name, phone });
+    } catch {
+      // skip malformed contacts
+    }
+  }
+
+  return dedupeByPhone(Array.from(entries.values()));
+}
+
+// WhatsApp keeps one identity record per contact for the privacy id (@lid) and one for the
+// phone number (@c.us); both hold the same name and phone, so fold them into the @c.us record.
+function dedupeByPhone(entries: BulkEntry[]): BulkEntry[] {
+  const byPhone = new Map<string, BulkEntry>();
+  const order: string[] = [];
+  const withoutPhone: BulkEntry[] = [];
+
+  for (const entry of entries) {
+    if (!entry.phone) {
+      withoutPhone.push(entry);
+      continue;
+    }
+
+    const existing = byPhone.get(entry.phone);
+
+    if (!existing) {
+      byPhone.set(entry.phone, entry);
+      order.push(entry.phone);
+      continue;
+    }
+
+    if (!existing.id.endsWith('@c.us') && entry.id.endsWith('@c.us')) {
+      byPhone.set(entry.phone, { ...entry, name: entry.name ?? existing.name });
+    } else if (!existing.name && entry.name) {
+      existing.name = entry.name;
+    }
+  }
+
+  const dedupedEntries: BulkEntry[] = [];
+  for (const phone of order) {
+    const entry = byPhone.get(phone);
+    if (entry) {
+      dedupedEntries.push(entry);
+    }
+  }
+
+  return dedupedEntries.concat(withoutPhone);
+}
+
+function findPhone(value: unknown, depth: number): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || depth > 3) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  for (const key of PHONE_KEYS) {
+    const phone = phoneField(record[key]);
+    if (phone) {
+      return phone;
+    }
+  }
+
+  for (const key of RELATION_KEYS) {
+    const phone = findPhone(record[key], depth + 1);
+    if (phone) {
+      return phone;
+    }
+  }
+
+  return null;
+}
+
+interface RowCapture {
+  id: string | null;
+  phone: string | null;
+}
+
+function safeReady(client: WppLike): boolean | undefined {
+  try {
+    return client.isReady;
+  } catch {
+    return undefined;
+  }
+}
+
+function captureRows(): RowCapture[] {
   const rows = Array.from(document.querySelectorAll('[role="listitem"]'));
 
   return rows.map((row) => {
     try {
-      return findRowId(row);
+      return findRowCapture(row);
     } catch {
-      return null;
+      return { id: null, phone: null };
     }
   });
 }
 
-function findRowId(row: Element): string | null {
+function findRowCapture(row: Element): RowCapture {
   let node: Element | null = row;
+  let id: string | null = null;
+  let phone: string | null = null;
+
+  const scan = (props: unknown) => {
+    if (!props || typeof props !== 'object') {
+      return;
+    }
+
+    const propsId = idFromProps(props);
+    if (!propsId) {
+      return;
+    }
+
+    id ??= propsId;
+    // Bind the number to a level that carries this row's id, so a shared
+    // ancestor can never attach another chat's contact to this row.
+    phone ??= findPhone(props, 0);
+  };
 
   for (let depth = 0; node && depth < 6; depth += 1, node = node.parentElement) {
     const record = node as unknown as Record<string, unknown>;
@@ -84,26 +337,20 @@ function findRowId(row: Element): string | null {
     const fiberKey = Object.keys(record).find((key) => key.startsWith('__reactFiber$'));
 
     if (propsKey) {
-      const id = idFromProps(record[propsKey]);
-      if (id) {
-        return id;
-      }
+      scan(record[propsKey]);
     }
 
     if (fiberKey) {
       let fiber = record[fiberKey] as FiberLike | null | undefined;
 
       for (let level = 0; fiber && level < 30; level += 1) {
-        const id = idFromProps(fiber.memoizedProps);
-        if (id) {
-          return id;
-        }
+        scan(fiber.memoizedProps);
         fiber = fiber.return ?? null;
       }
     }
   }
 
-  return null;
+  return { id, phone };
 }
 
 function idFromProps(props: unknown): string | null {
@@ -278,7 +525,7 @@ function bulkEntry(item: unknown): BulkEntry | null {
     return {
       id,
       name: pickName(item),
-      phone: phoneField(record.__x_phoneNumber ?? record.phoneNumber),
+      phone: findPhone(item, 0),
     };
   } catch {
     return null;
