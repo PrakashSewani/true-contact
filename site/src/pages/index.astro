@@ -1,0 +1,831 @@
+---
+import { BRAND } from '@truecontact/shared';
+import { APP_URL } from '../config';
+import Layout from '../layouts/Layout.astro';
+
+const steps = [
+  {
+    num: '01',
+    title: 'Import',
+    body: 'Push contacts from the WhatsApp connector with a pairing code, or drop in a vCard or CSV export. Every record becomes an observation, tagged with the source it came from.',
+  },
+  {
+    num: '02',
+    title: 'Reconcile',
+    body: 'Records are matched by phone and email, links are proposed, and non-conflicting details are absorbed with provenance. Nothing in this step is destructive.',
+  },
+  {
+    num: '03',
+    title: 'Review',
+    body: 'Confirm a merge, reject a bad match, resolve a conflict, or edit anything by hand. Canonical data changes only when you say so, and every decision is recorded.',
+  },
+  {
+    num: '04',
+    title: 'Own it',
+    body: 'Open any contact and read its story: when it first appeared, what changed, and where sources still disagree. Export the whole book as vCard or CSV whenever you like.',
+  },
+];
+
+const faqs = [
+  {
+    q: 'Does the WhatsApp connector need my WhatsApp password?',
+    a: 'No. It never asks for passwords, OTPs, or session secrets. It reads the contact data WhatsApp Web already renders and pushes it to your account under a token you can revoke at any time.',
+  },
+  {
+    q: 'Where does my data live?',
+    a: 'In your TrueContact account. Raw import files are kept only while an import is processing; the durable record is your contact graph and its history, and you can export all of it.',
+  },
+  {
+    q: 'Which sources work today?',
+    a: 'WhatsApp, through the browser extension, plus vCard and CSV files exported from almost anywhere else.',
+  },
+  {
+    q: 'What happens when two sources disagree?',
+    a: 'TrueContact surfaces the conflict and suggests a resolution. It never overwrites canonical data silently: you choose the value, and the decision is recorded in history.',
+  },
+  {
+    q: 'Can I get my data back out?',
+    a: 'Yes. Export the canonical book as vCard or CSV at any time. Exports are unlimited.',
+  },
+  {
+    q: 'Is there a mobile app?',
+    a: 'Not yet. The first release is the web app plus the connector for desktop browsers.',
+  },
+];
+---
+
+<Layout>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-head">
+    <div class="wrap head-inner">
+      <a class="wordmark" href="/">
+        <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+          <rect class="mark-bg" width="64" height="64" rx="14"></rect>
+          <circle class="mark-rings" cx="25" cy="32" r="11.5" fill="none" stroke-width="4.5"></circle>
+          <circle class="mark-rings" cx="39" cy="32" r="11.5" fill="none" stroke-width="4.5"></circle>
+        </svg>
+        <span>{BRAND.name}</span>
+      </a>
+      <nav class="head-nav" aria-label="Primary">
+        <a href="#how">How it works</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="button button-primary head-cta" href={APP_URL}>Open TrueContact</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="kicker">Personal contact infrastructure</p>
+          <h1 id="hero-title">Every source. One person. <em>Your call.</em></h1>
+          <p class="lede">
+            TrueContact gathers your contacts from WhatsApp, phones, and old exports, reconciles
+            them into one canonical book, and keeps the history of every change. You decide what
+            is right.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href={APP_URL}>Open TrueContact</a>
+            <a class="button button-secondary" href="#how">See how it works</a>
+          </div>
+          <p class="hero-note">No WhatsApp credentials. No card to start.</p>
+        </div>
+
+        <figure class="proof">
+          <div class="proof-card">
+            <header class="proof-head">
+              <div>
+                <p class="proof-kicker">Contact, 2 sources</p>
+                <p class="proof-name">Priya Sharma</p>
+              </div>
+              <ul class="chips">
+                <li class="chip">WhatsApp</li>
+                <li class="chip chip--file">Phone export</li>
+              </ul>
+            </header>
+            <dl class="proof-rows">
+              <div class="proof-row">
+                <dt>Name</dt>
+                <dd>
+                  <span class="proof-value">Priya Sharma <span class="proof-src">Phone export</span></span>
+                  <span class="proof-value proof-value--alt">Priya S. <span class="proof-src">WhatsApp</span></span>
+                </dd>
+              </div>
+              <div class="proof-row">
+                <dt>Phone</dt>
+                <dd>
+                  <span class="proof-value">+91 98765 43210 <span class="proof-src">2 sources</span></span>
+                </dd>
+              </div>
+              <div class="proof-row">
+                <dt>Phone</dt>
+                <dd>
+                  <span class="proof-value">+91 98111 22334 <span class="proof-src">WhatsApp</span></span>
+                </dd>
+              </div>
+              <div class="proof-row">
+                <dt>Email</dt>
+                <dd>
+                  <span class="proof-value">priya@example.com <span class="proof-src">Phone export</span></span>
+                </dd>
+              </div>
+            </dl>
+            <div class="proof-flags">
+              <span class="badge">Name conflict, needs your call</span>
+              <span class="proof-history">7 changes, last observed today</span>
+            </div>
+          </div>
+          <figcaption>
+            How the review queue looks: two sources, one conflict, nothing changed until you
+            decide.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="problem" aria-labelledby="problem-title">
+      <div class="wrap">
+        <p class="kicker">The problem</p>
+        <h2 id="problem-title">Your contact book is a pile of disagreements.</h2>
+        <p class="section-lede">
+          A contact exists in WhatsApp but not on your phone. A name changed on one side and not
+          the other. The same person appears three times under three spellings. Every import
+          drifts a little further from the truth.
+        </p>
+        <div class="compare">
+          <div class="compare-col">
+            <h3>Most tools</h3>
+            <ul class="ticks ticks--no">
+              <li>Pick one source and trust it blindly</li>
+              <li>Overwrite quietly on import</li>
+              <li>Merge duplicates without asking</li>
+              <li>Keep no history of changes</li>
+            </ul>
+          </div>
+          <div class="compare-col compare-col--ours">
+            <h3>TrueContact</h3>
+            <ul class="ticks ticks--yes">
+              <li>Keeps every observation with its source</li>
+              <li>Surfaces conflicts instead of hiding them</li>
+              <li>Changes canonical data only when you decide</li>
+              <li>Records every change in an append-only history</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <p class="kicker">How it works</p>
+        <h2 id="how-title">From scattered sources to one canonical book.</h2>
+        <ol class="steps">
+          {
+            steps.map((step) => (
+              <li class="step">
+                <span class="step-num" aria-hidden="true">
+                  {step.num}
+                </span>
+                <div class="step-body">
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="privacy" aria-labelledby="privacy-title">
+      <div class="wrap">
+        <p class="kicker">Trust</p>
+        <h2 id="privacy-title">Built so you can trust it with your address book.</h2>
+        <div class="compare">
+          <div class="compare-col">
+            <h3>What it never does</h3>
+            <ul class="ticks ticks--no">
+              <li>Ask for or store WhatsApp passwords, OTPs, or session secrets</li>
+              <li>Merge, overwrite, or delete canonical data without your say</li>
+              <li>Sell your contact data or use it for advertising</li>
+            </ul>
+          </div>
+          <div class="compare-col compare-col--ours">
+            <h3>What it always does</h3>
+            <ul class="ticks ticks--yes">
+              <li>Keeps provenance: every value shows where it came from</li>
+              <li>Keeps history: every change is an event you can read</li>
+              <li>Lets you export everything and walk away</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="whatsapp" aria-labelledby="whatsapp-title">
+      <div class="wrap connector">
+        <div class="connector-copy">
+          <p class="kicker">WhatsApp connector</p>
+          <h2 id="whatsapp-title">Your chats already know these people.</h2>
+          <p class="section-lede">
+            The connector is a browser extension that reads the contact list WhatsApp Web already
+            renders and pushes it to your account as normalized records. Pair it once with a short
+            code, then scan whenever you want a fresh observation.
+          </p>
+          <p class="section-lede">
+            No passwords, no OTPs, no session takeover. If WhatsApp changes tomorrow, your book
+            stays: sources come and go, the identity graph is yours.
+          </p>
+        </div>
+        <div class="pair">
+          <p class="pair-label">Pairing code</p>
+          <p class="pair-code"><span>TC</span>7K2M9F</p>
+          <p class="pair-note">Single use, expires in 10 minutes</p>
+          <ol class="pair-steps">
+            <li>Start pairing in TrueContact</li>
+            <li>Enter the code in the extension</li>
+            <li>Scan the contact list</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="pricing" aria-labelledby="pricing-title">
+      <div class="wrap narrow">
+        <p class="kicker">Pricing</p>
+        <h2 id="pricing-title">Free to start. Honest limits.</h2>
+        <p class="section-lede">
+          v1 has no billing and asks for no card. The free tier caps lifetime imported contacts so
+          the service can stay small and sustainable while it is young. When that changes, it will
+          be a decision you make, not a surprise.
+        </p>
+        <p class="section-cta">
+          <a class="button button-primary" href={APP_URL}>Open TrueContact</a>
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <div class="wrap narrow">
+        <p class="kicker">FAQ</p>
+        <h2 id="faq-title">Questions, answered.</h2>
+        <div class="faq">
+          {
+            faqs.map((item) => (
+              <details class="faq-item">
+                <summary>{item.q}</summary>
+                <p>{item.a}</p>
+              </details>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap foot-inner">
+      <div>
+        <p class="foot-name">{BRAND.name}</p>
+        <p class="foot-tag">{BRAND.tagline}</p>
+      </div>
+      <nav class="foot-nav" aria-label="Footer">
+        <a href="#how">How it works</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#faq">FAQ</a>
+        <a href={APP_URL}>Open TrueContact</a>
+      </nav>
+      <p class="foot-note">Contact data is never sold or used for advertising.</p>
+    </div>
+  </footer>
+</Layout>
+
+<style>
+  .site-head {
+    padding: 1.1rem 0 0.9rem;
+  }
+
+  .head-inner {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .wordmark svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .mark-bg {
+    fill: var(--green);
+  }
+
+  .mark-rings {
+    stroke: var(--paper);
+  }
+
+  .head-nav {
+    display: flex;
+    gap: 1.25rem;
+    margin-left: auto;
+    font-size: 0.92rem;
+  }
+
+  .head-nav a {
+    padding: 0.6rem 0;
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  .head-nav a:hover {
+    color: var(--ink);
+  }
+
+  .head-cta {
+    padding-inline: 1rem;
+    font-size: 0.92rem;
+  }
+
+  @media (max-width: 700px) {
+    .head-nav {
+      display: none;
+    }
+
+    .head-cta {
+      margin-left: auto;
+    }
+  }
+
+  .hero {
+    padding-block: clamp(2.75rem, 7vw, 5.5rem) clamp(3.5rem, 8vw, 6.5rem);
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: clamp(2rem, 6vw, 4.5rem);
+    align-items: center;
+  }
+
+  @media (max-width: 940px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 6.5vw, 3.9rem);
+  }
+
+  h1 em {
+    color: var(--green);
+  }
+
+  .lede {
+    margin-top: 1.25rem;
+    max-width: 32rem;
+    font-size: clamp(1.05rem, 1.6vw, 1.2rem);
+    color: var(--muted);
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+  }
+
+  .hero-note {
+    margin-top: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--faint);
+  }
+
+  .proof {
+    margin: 0;
+  }
+
+  .proof-card {
+    padding: 1.4rem 1.5rem 1.2rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .proof-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  @media (max-width: 560px) {
+    .proof-head {
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+  }
+
+  .proof-kicker {
+    margin-bottom: 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .proof-name {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    line-height: 1.1;
+  }
+
+  .proof-rows {
+    margin: 1.1rem 0 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .proof-row {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .proof-row dt {
+    padding-top: 0.15rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .proof-row dd {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0;
+  }
+
+  .proof-value {
+    font-size: 0.95rem;
+  }
+
+  .proof-value--alt {
+    color: var(--muted);
+  }
+
+  .proof-src {
+    margin-left: 0.4rem;
+    font-size: 0.72rem;
+    color: var(--faint);
+  }
+
+  .proof-flags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding-top: 0.9rem;
+  }
+
+  .proof-history {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--faint);
+  }
+
+  .proof figcaption {
+    margin-top: 0.8rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 2.5rem;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  .compare-col {
+    padding: 1.5rem 1.5rem 1.6rem;
+  }
+
+  .compare-col + .compare-col {
+    border-left: 1px solid var(--line);
+  }
+
+  .compare-col--ours {
+    background: var(--green-soft);
+  }
+
+  .compare-col h3 {
+    margin-bottom: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .compare-col--ours h3 {
+    color: var(--green);
+  }
+
+  @media (max-width: 720px) {
+    .compare {
+      grid-template-columns: 1fr;
+    }
+
+    .compare-col + .compare-col {
+      border-left: 0;
+      border-top: 1px solid var(--line);
+    }
+  }
+
+  .ticks {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .ticks li {
+    position: relative;
+    padding-left: 1.4rem;
+    font-size: 0.95rem;
+  }
+
+  .ticks li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.5em;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 2px;
+  }
+
+  .ticks--no li::before {
+    background: var(--amber);
+    opacity: 0.8;
+  }
+
+  .ticks--yes li::before {
+    background: var(--green);
+  }
+
+  .steps {
+    margin-top: 2.75rem;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 1.5rem;
+    padding: 1.6rem 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .step:last-child {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .step-num {
+    padding-top: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--faint);
+  }
+
+  .step-body h3 {
+    font-size: 1.35rem;
+  }
+
+  .step-body p {
+    margin-top: 0.5rem;
+    max-width: var(--measure);
+    color: var(--muted);
+  }
+
+  @media (max-width: 560px) {
+    .step {
+      grid-template-columns: 2.5rem 1fr;
+      gap: 1rem;
+    }
+  }
+
+  .connector {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: start;
+  }
+
+  @media (max-width: 860px) {
+    .connector {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .pair {
+    padding: 1.6rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .pair-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .pair-code {
+    margin-top: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: clamp(1.6rem, 4vw, 2.1rem);
+    letter-spacing: 0.18em;
+  }
+
+  .pair-code span {
+    color: var(--green);
+  }
+
+  .pair-note {
+    margin-top: 0.3rem;
+    font-size: 0.82rem;
+    color: var(--faint);
+  }
+
+  .pair-steps {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 1.1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    counter-reset: pair;
+  }
+
+  .pair-steps li {
+    position: relative;
+    padding-left: 1.6rem;
+    font-size: 0.92rem;
+    color: var(--muted);
+    counter-increment: pair;
+  }
+
+  .pair-steps li::before {
+    content: counter(pair);
+    position: absolute;
+    left: 0;
+    top: 0.05em;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--green);
+  }
+
+  .section-cta {
+    margin-top: 1.75rem;
+  }
+
+  .faq {
+    margin-top: 2rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .faq-item {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .faq-item summary {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 1.05rem 2rem 1.05rem 0;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .faq-item summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq-item summary::marker {
+    content: '';
+  }
+
+  .faq-item summary::after {
+    content: '+';
+    position: absolute;
+    right: 0.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    color: var(--green);
+  }
+
+  .faq-item[open] summary::after {
+    content: '-';
+  }
+
+  .faq-item p {
+    padding: 0 2rem 1.2rem 0;
+    max-width: var(--measure);
+    color: var(--muted);
+  }
+
+  .site-foot {
+    padding: 2.5rem 0 3rem;
+    background: var(--paper-deep);
+    border-top: 1px solid var(--line);
+  }
+
+  .foot-inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 720px) {
+    .foot-inner {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .foot-name {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+  }
+
+  .foot-tag {
+    margin-top: 0.2rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  .foot-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.1rem;
+    font-size: 0.9rem;
+  }
+
+  .foot-note {
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.82rem;
+    color: var(--faint);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-copy {
+      animation: rise 0.6s ease-out both;
+    }
+
+    .proof {
+      animation: rise 0.6s 0.12s ease-out both;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  }
+</style>

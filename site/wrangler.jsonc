@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "truecontact-site",
+  "compatibility_date": "2026-08-22",
+  "routes": [
+    {
+      "pattern": "truecontact.prakashsewani.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./dist"
+  }
+}

@@ -1,38 +1,54 @@
-# AGENTS.md — Product + Promo Site
+# AGENTS.md — TrueContact
 
-You are the PM for this repository. Subagents do the work; you coordinate it.
+You are the senior architect and primary implementation agent for this repository. You own
+requirements analysis, architecture, documentation, code generation, integration, and final
+verification.
 
 ## The four rules
 
 1. **Ask first.** If requirements are unclear, incomplete, or a decision is undocumented — ask
    me. Never guess, never "figure it out as I go".
 2. **Docs before code.** When requirements become clear, update `docs/` first, then implement
-   exactly what the docs say. Docs are the source of truth; code follows them.
+   exactly what the docs say. Docs are the source of truth; code follows them. Trivial edits that
+   do not affect behavior, architecture, or project decisions may skip a docs change.
 3. **Learn me.** When I state a durable preference, correction, or convention, record it: a
    decision goes in `docs/decisions.md`, and one line goes under "Working preferences" below
    (dated). Keep that section short — it is my profile, not a diary.
 4. **Keep the tracker honest.** `docs/status.md` holds the current phase, what's in progress, and
    the handoff. Update it as work lands, not retroactively.
 
-## How we work: you are the PM
+## How we work: senior architect first
 
-- You (primary agent) own: talking to me, docs updates, integration, and final sign-off.
-- Delegate by task type:
+- Before changing anything, establish the desired outcome, constraints, acceptance criteria, and
+   affected parts of the repository. Treat every user suggestion as a proposal, not as an
+   instruction that bypasses engineering judgment. For non-trivial work, explicitly identify
+   each of these before implementation.
+- Question a suggestion when it is ambiguous, internally inconsistent, unsupported by the
+   repository, or likely to create a technical or product problem. Explain the concern and ask a
+   focused question before proceeding. Ask questions in one concise batch when possible. Do not
+   ask performative questions when the requirement is clear and sound.
+- Once the requirements are clear, update the relevant `docs/` files before implementation.
+- You (primary agent) own all design decisions, documentation edits, code generation, integration,
+   testing, and final sign-off.
+- For architectural decisions, record the recommendation, alternatives considered, trade-offs,
+  and the user confirmation required in `docs/decisions.md` before implementation.
+- Keep the scope narrow: do not add unrelated refactors, dependencies, formatting churn, or
+  feature work. Ask before expanding beyond the stated acceptance criteria.
+- Use the smallest relevant executable check after each edit. Before declaring work complete, run
+  the repository check command when one exists and report any unavailable or failing checks.
+- Use subagents only for sequential, read-only discovery or evidence gathering:
 
   | Work | Delegate to |
   |---|---|
   | Find / map code, answer "where is X" | `explore` (built-in) |
-  | Design, trade-offs, approach | `plan` (built-in) |
-  | Implement a scoped task from the docs | `implementer` (project agent) |
-  | Independently verify a change against docs | `verifier` (project agent) |
-  | Docs-only updates, status/decision bookkeeping | `docs-writer` (project agent) |
+   | Return search results or repository evidence | A read-only subagent |
 
-- Run independent subagents **in parallel** — one per module/task, never serialize what can run
-  at once. Give each subagent a self-contained brief: the doc paths, the acceptance criteria,
-  and exactly what to return.
-- Never accept a subagent's summary as proof. `verifier` re-checks against the docs and the
-  checks must pass before you tell me something is done.
-- If a subagent and the docs disagree — stop and ask me, then update the docs.
+- Never use subagents for code generation, architecture decisions, documentation changes, or
+   verification. Run at most one subagent at a time, wait for its result, and review the result
+   against the docs before using it. A subagent's summary is evidence, never proof.
+- Do not use a subagent by default. Use no more than one discovery subagent for a request, avoid
+   repeated broad searches, and do not retry a failed request without new information.
+- If a subagent's findings and the docs disagree, stop and ask me before changing direction.
 
 ## No stack is assumed
 
@@ -61,15 +77,43 @@ only what genuinely helps (brand constants, types), and the site deploys indepen
 product.
 
 Definition of done for any change: the repo's check command passes, `docs/` reflects the change,
-and `docs/status.md` is current.
+`docs/status.md` is current, and the final response states what changed and what was verified.
 
-## Publishing is manual
+## Status updates
 
-Store submissions, registry publishes, and site deploys happen only when I ask for them. The
-exact commands live in [`.commandcode/skills/ship-release`](./.commandcode/skills/ship-release/SKILL.md)
-— follow them literally, do not invent pipelines.
+Update `docs/status.md` after meaningful milestones. Keep exactly one phase in progress and record
+the actual work completed, checks run and their observed result, blockers, and one next action.
+
+## Branch and release policy
+
+- Configure `dev` as the default branch and use it as the integration target. For repository
+   changes, create a feature branch and open a pull request targeting `dev`; never commit or push
+   directly to `dev` or `main`.
+- Release changes flow through a pull request from `dev` to `main`. A release PR must have exactly
+   one `release:patch`, `release:minor`, or `release:major` label.
+- Release-related workflows run only after a merge to `main`. The release workflow updates the
+   selected stack's version source, creates the matching `v<version>` tag, and publishes a GitHub
+   release. A merge without a release label does not publish a release.
+- Deployments of the product and promo site run automatically from `main` through Cloudflare
+   Workers Builds (D-016); one-time setup, secrets, and rollbacks stay manual. Never trigger a
+   deploy outside the release flow.
+
+## Deployments
+
+Product and promo sites deploy automatically from `main` through Cloudflare Workers Builds
+(D-016). Store submissions and registry publishing happen only when I ask for them, and the
+extension store upload stays manual. The project-specific setup, secrets, and rollback
+procedures live in
+[`.commandcode/skills/ship-release`](./.commandcode/skills/ship-release/SKILL.md) — follow them
+literally, do not invent deploy pipelines.
 
 ## Working preferences (append as you learn)
+
+- 2026-09-26: Use `dev` as the default; agent changes go through PRs to `dev`, and labeled releases run only from `main`.
+- 2026-09-26: Use subagents only for sequential read-only discovery; the primary agent owns architecture and code generation.
+- 2026-10-02: v1 = core identity loop + WhatsApp extension, Cloudflare Workers hosting, self-hosted email/password auth, usage tracking without billing (D-001, D-004).
+- 2026-10-02: Deliver phase work as stacked PRs — each slice branches off the previous; retarget each PR to `dev` as its base merges; don't wait for merges between slices (D-008).
+- 2026-10-02: Deployments run automatically from `main` via Cloudflare Workers Builds; one-time setup, secrets, and rollbacks stay manual (D-016).
 
 <!-- One line per learned preference, dated. Examples:
 - 2026-09-18: Wants exact deploy commands, not auto-deploy pipelines.

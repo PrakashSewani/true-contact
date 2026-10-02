@@ -14,11 +14,16 @@ target/
 .next/
 .output/
 .wxt/
+.astro/
+.wrangler/
+*.tsbuildinfo
 
 # Env & secrets
 .env
 .env.*
 !.env.example
+.dev.vars
+!.dev.vars.example
 
 # Caches, logs, coverage
 *.log

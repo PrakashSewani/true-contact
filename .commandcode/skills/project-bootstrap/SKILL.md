@@ -3,7 +3,7 @@ name: project-bootstrap
 description: Choose the tech stack for this repository and scaffold it. Use when the repo is fresh (docs/product.md is unfilled, docs/decisions.md D-001 is pending) or when the user asks to set up, scaffold, bootstrap, initialize, or "start" the project.
 license: MIT
 metadata:
-  template: template-app-plus-site
+  template: true-contact
   version: "1"
 ---
 
@@ -14,7 +14,7 @@ stack, recorded in the docs, scaffolded and verified. Do not write product code 
 
 ## Step 0 — Rename the template (once)
 
-If the repo still says `template-app-plus-site` / "Product + Promo Site" anywhere (README,
+If the repo still says `true-contact` / "TrueContact" anywhere (README,
 AGENTS.md, docs, skills), fix that before anything else. The slug is the repository name; the
 title is the human name for it.
 
@@ -95,10 +95,16 @@ and re-present.
   serves a page).
 - Wire the checks: typecheck, lint, tests, build — one command each, plus a single `check`
   command that runs them all. The check command is the definition of done.
-- Add `.github/workflows/ci.yml` running the check command and the build, using current action
-  versions (resolve them — same rule as packages).
-- Add the release path (tag → artifact/publish) per the `ship-release` skill. Deploys stay
-  manual.
+- Configure `dev` as the default integration branch. Add CI for pull requests targeting `dev`
+  and for development work; do not run release or publish jobs from `dev`.
+- Add release automation that runs only after a pull request merges into `main`. A release PR
+  must have exactly one `release:patch`, `release:minor`, or `release:major` label. On merge,
+  update the selected stack's version source and changelog, create the matching `v<version>` tag,
+  and publish a GitHub release. A merge without a release label must not publish a release.
+  Resolve and pin current workflow action versions when implementing it.
+- Store the required release labels and configure repository branch protections for PR-based
+  changes to `dev` and `main`. Product and site deployments stay manual; follow the
+  `ship-release` skill.
 - Do not copy an example project wholesale. Write what this product needs; leave out what it
   does not need yet.
 
@@ -106,7 +112,8 @@ and re-present.
 
 - `docs/decisions.md` — replace D-001 with the real decision: stack + exact versions + rejected
   options + why.
-- `docs/architecture.md` — shape, components, data flow, boundaries/invariants.
+- `docs/architecture.md` — shape, components, data flow, boundaries/invariants, branch roles,
+  release flow, and required repository settings.
 - `docs/development.md` — prerequisites, setup, and the exact commands (only ones you ran).
 - `docs/status.md` — phase 0 complete, phase 1 current, handoff written.
 
