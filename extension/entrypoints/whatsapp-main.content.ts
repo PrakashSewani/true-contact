@@ -26,13 +26,17 @@ export default defineContentScript({
         return;
       }
 
+      const rows = captureRows();
+      const bulk = captureBulk();
+      debugCapture(rows, bulk);
+
       window.postMessage(
         {
           source: 'truecontact-connector-page',
           type: 'capture-result',
           nonce: data.nonce,
-          rows: captureRows(),
-          bulk: captureBulk(),
+          rows,
+          bulk,
         },
         '*',
       );
@@ -93,6 +97,85 @@ function findPhone(value: unknown, depth: number): string | null {
 interface RowCapture {
   id: string | null;
   phone: string | null;
+}
+
+function debugCapture(rows: RowCapture[], bulk: BulkEntry[]): void {
+  try {
+    const payload = {
+      rows: rows.length,
+      rowsWithPhone: rows.filter((row) => row.phone).length,
+      bulk: bulk.length,
+      bulkWithPhone: bulk.filter((entry) => entry.phone).length,
+      rowSample: rows.slice(0, 4),
+      bulkSample: bulk.slice(0, 4).map((entry) => ({ id: entry.id, phone: entry.phone })),
+      trace: traceFirstRow(),
+    };
+
+    console.log(`[TrueContact] capture ${JSON.stringify(payload)}`);
+  } catch (error) {
+    console.log('[TrueContact] capture debug failed', error);
+  }
+}
+
+function traceFirstRow(): unknown {
+  const rows = Array.from(document.querySelectorAll('[role="listitem"]'));
+
+  for (const row of rows) {
+    let node: Element | null = row;
+
+    for (let depth = 0; node && depth < 6; depth += 1, node = node.parentElement) {
+      const record = node as unknown as Record<string, unknown>;
+      const propsKey = Object.keys(record).find((key) => key.startsWith('__reactProps$'));
+      const fiberKey = Object.keys(record).find((key) => key.startsWith('__reactFiber$'));
+      const levels: unknown[] = [];
+
+      if (propsKey) {
+        levels.push(record[propsKey]);
+      }
+      if (fiberKey) {
+        let fiber = record[fiberKey] as FiberLike | null | undefined;
+
+        for (let level = 0; fiber && level < 30; level += 1) {
+          levels.push(fiber.memoizedProps);
+          fiber = fiber.return ?? null;
+        }
+      }
+
+      for (const props of levels) {
+        if (!props || typeof props !== 'object') {
+          continue;
+        }
+
+        const id = idFromProps(props);
+        if (!id) {
+          continue;
+        }
+
+        const p = props as Record<string, unknown>;
+        const descriptor = p.data as Record<string, unknown> | undefined;
+        const model = (descriptor?.data as Record<string, unknown> | undefined) ?? descriptor;
+
+        if (!model || typeof model !== 'object') {
+          continue;
+        }
+
+        const keys = Object.keys(model).slice(0, 80);
+        const contact = model.contact as Record<string, unknown> | undefined;
+
+        return {
+          id,
+          modelKeys: keys,
+          phoneishKeys: keys.filter((key) => /phone/i.test(key)),
+          hasContact: !!contact,
+          contactPhoneishKeys: contact
+            ? Object.keys(contact).filter((key) => /phone/i.test(key))
+            : null,
+        };
+      }
+    }
+  }
+
+  return 'no row with id found';
 }
 
 function captureRows(): RowCapture[] {

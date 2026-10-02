@@ -125,6 +125,19 @@ async function captureContacts(): Promise<CaptureResult> {
     sampleJid,
   };
 
+  console.log(
+    `[TrueContact] merged ${JSON.stringify({
+      rowCount: rows.length,
+      jidRows,
+      bulkFound,
+      matched: contacts.length,
+      withPhone,
+      sample: contacts
+        .slice(0, 4)
+        .map((contact) => ({ id: contact.externalId, phones: contact.phones })),
+    })}`,
+  );
+
   return { contacts, diagnostics };
 }
 
