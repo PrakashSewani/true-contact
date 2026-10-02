@@ -134,10 +134,9 @@ function emptyReason(diagnostics?: CaptureDiagnostics): string {
     return 'No chat rows found — open the main chat list (not the New chat panel) and try again.';
   }
 
-  const firstId = diagnostics.firstDataId ?? 'none';
-  const firstTitle = diagnostics.firstTitle ?? 'none';
+  const sample = diagnostics.sampleJid ? `, e.g. ${diagnostics.sampleJid}` : '';
 
-  return `Found ${diagnostics.rowCount} rows but none were contacts (first data-id: ${firstId}, first title: ${firstTitle}).`;
+  return `Found ${diagnostics.rowCount} rows but no importable contacts — chat IDs read: ${diagnostics.jidRows}${sample}, page state readable: ${diagnostics.reactFound ? 'yes' : 'no'}, first title: ${diagnostics.firstTitle ?? 'none'}.`;
 }
 
 async function errorText(response: Response): Promise<string> {

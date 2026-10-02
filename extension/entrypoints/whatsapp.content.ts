@@ -2,10 +2,11 @@ import type { CaptureDiagnostics, CaptureResult } from '../lib/messages';
 
 export default defineContentScript({
   matches: ['https://web.whatsapp.com/*'],
+  runAt: 'document_idle',
   main() {
     browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if ((message as { type?: string } | undefined)?.type === 'capture') {
-        sendResponse(captureContacts());
+        void captureContacts().then(sendResponse);
         return true;
       }
 
@@ -14,38 +15,33 @@ export default defineContentScript({
   },
 });
 
-const ROW_STRATEGIES = ['#pane-side [role="listitem"]', '[role="listitem"]'];
+const ROW_SELECTOR = '[role="listitem"]';
 
-function captureContacts(): CaptureResult {
+async function captureContacts(): Promise<CaptureResult> {
   const contacts: CaptureResult['contacts'] = [];
   const seen = new Set<string>();
 
-  let strategy: string | null = null;
-  let rows: Element[] = [];
+  const rows = Array.from(document.querySelectorAll(ROW_SELECTOR));
+  const jids = await requestJids();
 
-  for (const selector of ROW_STRATEGIES) {
-    const found = Array.from(document.querySelectorAll(selector));
-    if (found.length > 0) {
-      strategy = selector;
-      rows = found;
-      break;
-    }
-  }
-
-  let firstDataId: string | null = null;
   let firstTitle: string | null = null;
+  let jidRows = 0;
+  let sampleJid: string | null = null;
 
   for (const [index, row] of rows.entries()) {
-    const dataId = chatDataId(row);
-    const jid = jidFromDataId(dataId);
     const name = chatName(row);
+    const jid = jids?.[index] ?? null;
 
     if (index === 0) {
-      firstDataId = dataId;
       firstTitle = name;
     }
 
-    if (!jid.endsWith('@c.us') || name === '' || seen.has(jid)) {
+    if (jid) {
+      jidRows += 1;
+      sampleJid ??= jid;
+    }
+
+    if (!jid?.endsWith('@c.us') || name === '' || seen.has(jid)) {
       continue;
     }
     seen.add(jid);
@@ -64,30 +60,56 @@ function captureContacts(): CaptureResult {
 
   const diagnostics: CaptureDiagnostics = {
     url: location.href,
-    strategy,
+    strategy: rows.length > 0 ? ROW_SELECTOR : null,
     rowCount: rows.length,
+    jidRows,
     matchedCount: contacts.length,
-    firstDataId,
+    reactFound: jids !== null,
     firstTitle,
+    sampleJid,
   };
 
   return { contacts, diagnostics };
 }
 
-function chatDataId(row: Element): string | null {
-  const holder = row.querySelector('[data-id]') ?? row;
+async function requestJids(): Promise<(string | null)[] | null> {
+  return new Promise((resolve) => {
+    const nonce = crypto.randomUUID();
 
-  return holder.getAttribute('data-id');
-}
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 1500);
 
-function jidFromDataId(dataId: string | null): string {
-  if (!dataId) {
-    return '';
-  }
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== window) {
+        return;
+      }
 
-  const segment = dataId.split('_').find((part) => part.endsWith('@c.us'));
+      const data = event.data as
+        | { source?: string; type?: string; nonce?: string; jids?: unknown }
+        | undefined;
 
-  return segment ?? '';
+      if (
+        data?.source !== 'truecontact-connector-page' ||
+        data.nonce !== nonce ||
+        !Array.isArray(data.jids)
+      ) {
+        return;
+      }
+
+      cleanup();
+      resolve(data.jids.map((value) => (typeof value === 'string' ? value : null)));
+    };
+
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener('message', onMessage);
+    };
+
+    window.addEventListener('message', onMessage);
+    window.postMessage({ source: 'truecontact-connector', type: 'capture', nonce }, '*');
+  });
 }
 
 function chatName(row: Element): string {

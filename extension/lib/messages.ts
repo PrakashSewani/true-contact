@@ -43,9 +43,11 @@ export interface CaptureDiagnostics {
   url: string;
   strategy: string | null;
   rowCount: number;
+  jidRows: number;
   matchedCount: number;
-  firstDataId: string | null;
+  reactFound: boolean;
   firstTitle: string | null;
+  sampleJid: string | null;
 }
 
 export interface CaptureResult {
