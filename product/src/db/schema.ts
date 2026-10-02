@@ -1,4 +1,13 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { NormalizedContact } from '@truecontact/shared';
+import {
+  type AnySQLiteColumn,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 export const user = sqliteTable('user', {
   id: text('id').primaryKey(),
@@ -60,4 +69,260 @@ export const verification = sqliteTable(
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
   },
   (table) => [index('verification_identifier_idx').on(table.identifier)],
+);
+
+export const sources = sqliteTable(
+  'sources',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['whatsapp', 'vcard', 'csv'] }).notNull(),
+    label: text('label'),
+    lastObservedAt: integer('last_observed_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [index('sources_user_id_idx').on(table.userId)],
+);
+
+export interface ImportStats {
+  contacts?: number;
+  created?: number;
+  linked?: number;
+  conflicts?: number;
+}
+
+export const imports = sqliteTable(
+  'imports',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    sourceId: text('source_id')
+      .notNull()
+      .references(() => sources.id, { onDelete: 'cascade' }),
+    status: text('status', { enum: ['pending', 'processing', 'complete', 'failed'] })
+      .notNull()
+      .default('pending'),
+    rawKey: text('raw_key'),
+    fileName: text('file_name'),
+    stats: text('stats', { mode: 'json' }).$type<ImportStats>(),
+    error: text('error'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    startedAt: integer('started_at', { mode: 'timestamp' }),
+    finishedAt: integer('finished_at', { mode: 'timestamp' }),
+  },
+  (table) => [
+    index('imports_user_id_idx').on(table.userId),
+    index('imports_source_id_idx').on(table.sourceId),
+  ],
+);
+
+export const observations = sqliteTable(
+  'observations',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    importId: text('import_id')
+      .notNull()
+      .references(() => imports.id, { onDelete: 'cascade' }),
+    sourceId: text('source_id')
+      .notNull()
+      .references(() => sources.id, { onDelete: 'cascade' }),
+    externalId: text('external_id'),
+    displayName: text('display_name').notNull(),
+    normalizedName: text('normalized_name').notNull(),
+    notes: text('notes'),
+    observedAt: integer('observed_at', { mode: 'timestamp' }).notNull(),
+    payload: text('payload', { mode: 'json' }).$type<NormalizedContact>().notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [
+    index('observations_user_id_idx').on(table.userId),
+    index('observations_import_id_idx').on(table.importId),
+    index('observations_normalized_name_idx').on(table.normalizedName),
+  ],
+);
+
+export const observationIdentifiers = sqliteTable(
+  'observation_identifiers',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    observationId: text('observation_id')
+      .notNull()
+      .references(() => observations.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['phone', 'email'] }).notNull(),
+    value: text('value').notNull(),
+    normalizedValue: text('normalized_value').notNull(),
+    label: text('label'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [
+    index('observation_identifiers_lookup_idx').on(table.userId, table.kind, table.normalizedValue),
+    index('observation_identifiers_observation_id_idx').on(table.observationId),
+  ],
+);
+
+export const identities = sqliteTable(
+  'identities',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    displayName: text('display_name').notNull(),
+    notes: text('notes'),
+    mergedIntoId: text('merged_into_id').references((): AnySQLiteColumn => identities.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [index('identities_user_id_idx').on(table.userId)],
+);
+
+export const identityValues = sqliteTable(
+  'identity_values',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    identityId: text('identity_id')
+      .notNull()
+      .references(() => identities.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['phone', 'email'] }).notNull(),
+    value: text('value').notNull(),
+    normalizedValue: text('normalized_value').notNull(),
+    label: text('label'),
+    firstObservationId: text('first_observation_id').references(() => observations.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [
+    index('identity_values_lookup_idx').on(table.userId, table.kind, table.normalizedValue),
+    index('identity_values_identity_id_idx').on(table.identityId),
+  ],
+);
+
+export const identityLinks = sqliteTable(
+  'identity_links',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    identityId: text('identity_id')
+      .notNull()
+      .references(() => identities.id, { onDelete: 'cascade' }),
+    observationId: text('observation_id')
+      .notNull()
+      .references(() => observations.id, { onDelete: 'cascade' }),
+    confidence: real('confidence').notNull(),
+    method: text('method', {
+      enum: ['exact_identifier', 'name_similarity', 'manual', 'new_identity'],
+    }).notNull(),
+    status: text('status', { enum: ['auto', 'proposed', 'confirmed', 'rejected'] }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('identity_links_observation_id_unique').on(table.observationId),
+    index('identity_links_identity_id_idx').on(table.identityId),
+  ],
+);
+
+export const conflicts = sqliteTable(
+  'conflicts',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    identityId: text('identity_id')
+      .notNull()
+      .references(() => identities.id, { onDelete: 'cascade' }),
+    field: text('field', { enum: ['display_name', 'phone', 'email', 'notes'] }).notNull(),
+    existingValue: text('existing_value'),
+    existingValueId: text('existing_value_id').references(() => identityValues.id, {
+      onDelete: 'set null',
+    }),
+    proposedValue: text('proposed_value').notNull(),
+    proposedLabel: text('proposed_label'),
+    proposedObservationId: text('proposed_observation_id').references(() => observations.id, {
+      onDelete: 'cascade',
+    }),
+    status: text('status', { enum: ['open', 'resolved', 'dismissed'] })
+      .notNull()
+      .default('open'),
+    resolution: text('resolution', { enum: ['keep_existing', 'use_proposed', 'custom'] }),
+    resolvedValue: text('resolved_value'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+  },
+  (table) => [
+    index('conflicts_user_id_idx').on(table.userId),
+    index('conflicts_identity_id_idx').on(table.identityId),
+  ],
+);
+
+export const historyEvents = sqliteTable(
+  'history_events',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    identityId: text('identity_id')
+      .notNull()
+      .references(() => identities.id, { onDelete: 'cascade' }),
+    type: text('type', {
+      enum: [
+        'created',
+        'observed',
+        'value_added',
+        'value_changed',
+        'value_removed',
+        'conflict_opened',
+        'conflict_resolved',
+        'merged',
+        'split',
+      ],
+    }).notNull(),
+    actor: text('actor', { enum: ['system', 'user'] }).notNull(),
+    sourceId: text('source_id').references(() => sources.id, { onDelete: 'set null' }),
+    importId: text('import_id').references(() => imports.id, { onDelete: 'set null' }),
+    observationId: text('observation_id').references(() => observations.id, {
+      onDelete: 'set null',
+    }),
+    payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [
+    index('history_events_identity_id_created_at_idx').on(table.identityId, table.createdAt),
+  ],
+);
+
+export const usageOperations = sqliteTable(
+  'usage_operations',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['imported_contact', 'export'] }).notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [index('usage_operations_user_id_created_at_idx').on(table.userId, table.createdAt)],
 );

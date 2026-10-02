@@ -129,3 +129,48 @@ credential), an unprotected `main` (loses force-push/deletion protection), auto-
 
 **Security note:** deploy keys are scoped to this single repository and are revocable; rotate by
 adding a new key, updating the secret, and deleting the old key.
+
+## D-006: Contact-graph schema and increment semantics
+
+**Date:** 2026-10-02
+
+**Decision:** Phase 2 opens with the contact-graph domain schema and the increment semantics that
+decide what the review queue contains. Semantics first:
+
+- New unknown people become identities automatically from their first observation; that
+  observation seeds the canonical values and its link.
+- Exact normalized identifier matches (phone/email) link automatically (`auto` status); fuzzy
+  matches are `proposed` for review.
+- Non-conflicting values from an import are absorbed into canonical automatically, each with
+  provenance and an append-only history event.
+- Competing values become `conflicts` rows; canonical data is never overwritten until the user
+  resolves the conflict. Merges and splits are user actions only.
+
+**Schema** (Drizzle migration `0001`; every graph table carries `user_id` for tenant scoping;
+text UUID primary keys and integer-second timestamps, consistent with the auth tables):
+
+- `identities` — canonical contact; `merged_into_id` tombstones merges instead of deleting.
+- `identity_values` — canonical phones/emails as rows with `normalized_value` indexed, so
+  blocking works for user-entered values that have no observation.
+- `observations` — one normalized record per intake (full `payload` JSON + `normalized_name`),
+  linked to its `import` and `source`.
+- `observation_identifiers` — indexed normalized phone/email per observation: the blocking keys.
+- `identity_links` — observation ↔ identity with `confidence`, `method`
+  (`exact_identifier` | `name_similarity` | `manual` | `new_identity`), and `status`
+  (`auto` | `proposed` | `confirmed` | `rejected`); one identity per observation.
+- `conflicts` — competing value for a canonical field with provenance and resolution state.
+- `history_events` — append-only: actor, type, payload, timestamp.
+- `sources` + `imports` — connections and jobs (status, R2 raw key, stats).
+- `usage_operations` — append-only per-account operation counts; limits enforced by query.
+
+**Rejected**
+
+- Canonical values as JSON columns — normalized values could not be indexed for blocking, and
+  user-entered values would have no observation to hang provenance off.
+- Integer autoincrement IDs — would mix ID styles with the auth tables.
+- ULIDs — sortability is not needed for public IDs at v1 scale; no new dependency.
+- Strict review of every import change — non-conflicting additions are non-destructive; they
+  apply automatically and stay visible through provenance and history.
+- Identifiers stored only inside the observation JSON — blocking queries need indexed rows.
+
+**Confirmed by user:** 2026-10-02 (auto-add plus review conflicts; auto-link exact matches).
