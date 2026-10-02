@@ -27,6 +27,7 @@ export interface ScanResult {
   ok: boolean;
   error?: string;
   pushed?: number;
+  withPhone?: number;
 }
 
 export interface StatusResult {
@@ -50,6 +51,7 @@ export interface PongResult {
 export interface BulkEntry {
   id: string;
   name: string | null;
+  phone: string | null;
 }
 
 export interface CaptureDiagnostics {
@@ -59,6 +61,7 @@ export interface CaptureDiagnostics {
   jidRows: number;
   bulkFound: number;
   matchedCount: number;
+  withPhone: number;
   reactFound: boolean;
   firstTitle: string | null;
   sampleJid: string | null;

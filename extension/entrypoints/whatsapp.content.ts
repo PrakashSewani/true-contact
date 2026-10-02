@@ -33,6 +33,18 @@ async function captureContacts(): Promise<CaptureResult> {
   const rows = Array.from(document.querySelectorAll(ROW_SELECTOR));
   const capture = await requestCapture();
 
+  const phonesById = new Map<string, string>();
+  const namesById = new Map<string, string>();
+
+  for (const entry of capture?.bulk ?? []) {
+    if (entry.phone) {
+      phonesById.set(entry.id, entry.phone);
+    }
+    if (entry.name) {
+      namesById.set(entry.id, entry.name);
+    }
+  }
+
   const collected = new Map<string, { name: string; phone: string | null }>();
   let firstTitle: string | null = null;
   let jidRows = 0;
@@ -52,9 +64,12 @@ async function captureContacts(): Promise<CaptureResult> {
     jidRows += 1;
     sampleJid ??= jid;
 
-    const name = title !== '' ? title : (phoneOf(jid) ?? '');
+    const phoneJid = jid.endsWith('@c.us') ? jid : (phonesById.get(jid) ?? '');
+    const phone = phoneOf(phoneJid);
+    const name = title !== '' ? title : (namesById.get(jid) ?? phone ?? '');
+
     if (name !== '' && !collected.has(jid)) {
-      collected.set(jid, { name, phone: phoneOf(jid) });
+      collected.set(jid, { name, phone });
     }
   }
 
@@ -66,15 +81,22 @@ async function captureContacts(): Promise<CaptureResult> {
       continue;
     }
 
-    const name = entry.name ?? phoneOf(entry.id);
+    const phone = phoneOf(entry.phone ?? '');
+    const name = entry.name ?? phone;
+
     if (name) {
-      collected.set(entry.id, { name, phone: phoneOf(entry.id) });
+      collected.set(entry.id, { name, phone });
     }
   }
 
   const contacts: CaptureResult['contacts'] = [];
+  let withPhone = 0;
 
   for (const [jid, info] of collected) {
+    if (info.phone) {
+      withPhone += 1;
+    }
+
     contacts.push({
       externalId: jid,
       displayName: info.name,
@@ -91,6 +113,7 @@ async function captureContacts(): Promise<CaptureResult> {
     jidRows,
     bulkFound,
     matchedCount: contacts.length,
+    withPhone,
     reactFound: capture !== null,
     firstTitle,
     sampleJid,
@@ -144,11 +167,15 @@ async function requestCapture(): Promise<PageCapture | null> {
             if (!value || typeof value !== 'object') {
               return null;
             }
-            const record = value as { id?: unknown; name?: unknown };
+            const record = value as { id?: unknown; name?: unknown; phone?: unknown };
             if (typeof record.id !== 'string') {
               return null;
             }
-            return { id: record.id, name: typeof record.name === 'string' ? record.name : null };
+            return {
+              id: record.id,
+              name: typeof record.name === 'string' ? record.name : null,
+              phone: typeof record.phone === 'string' ? record.phone : null,
+            };
           })
           .filter((value): value is BulkEntry => value !== null),
       });

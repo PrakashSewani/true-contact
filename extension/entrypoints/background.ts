@@ -115,7 +115,7 @@ async function scan(apiBase: string): Promise<ScanResult> {
       return { ok: false, error: await errorText(response) };
     }
 
-    return { ok: true, pushed: contacts.length };
+    return { ok: true, pushed: contacts.length, withPhone: capture?.diagnostics?.withPhone };
   } catch (error) {
     return { ok: false, error: errorMessage(error) };
   }

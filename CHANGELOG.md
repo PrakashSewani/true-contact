@@ -20,9 +20,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ### Fixed
 
-- WhatsApp connector: chat capture reads chat/contact IDs from WhatsApp's page state (the DOM no
-  longer carries them) — covering the full chat and contact lists, not just rendered rows — and a
-  scan that finds nothing reports what the capture actually saw.
+- WhatsApp connector: chat capture reads chat IDs from WhatsApp's page state (the DOM no longer
+  carries them) — covering the full chat and contact lists, not just rendered rows — and a scan
+  that finds nothing reports what the capture actually saw.
+- WhatsApp connector: phone numbers are now captured for LID-based contacts too (WhatsApp exposes
+  the number on the page's contact model), and the popup reports how many contacts came with
+  numbers.
+- Contacts list and export no longer fail for accounts with more than 100 contacts (the D1
+  bound-parameter limit broke the batch queries).
 
 ## [1.0.0] - 2026-10-02
 

@@ -79,7 +79,11 @@ export function App() {
       return;
     }
 
-    setMessage(`Pushed ${result.pushed ?? 0} contacts to TrueContact.`);
+    setMessage(
+      `Pushed ${result.pushed ?? 0} contacts${
+        typeof result.withPhone === 'number' ? ` — ${result.withPhone} with phone numbers` : ''
+      }.`,
+    );
   }
 
   async function handleDisconnect() {

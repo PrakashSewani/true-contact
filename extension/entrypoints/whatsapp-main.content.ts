@@ -50,6 +50,19 @@ function parseJid(value: string): string | null {
   return number && server ? `${number}@${server.toLowerCase()}` : null;
 }
 
+function phoneField(value: unknown): string | null {
+  const serialized = typeof value === 'string' ? value : jidString(value);
+  if (!serialized) {
+    return null;
+  }
+
+  const match = JID_PATTERN.exec(serialized);
+  const number = match?.[1];
+  const server = match?.[2]?.toLowerCase();
+
+  return number && server === 'c.us' ? `${number}@c.us` : null;
+}
+
 function captureRowIds(): (string | null)[] {
   const rows = Array.from(document.querySelectorAll('[role="listitem"]'));
 
@@ -119,6 +132,7 @@ function idFromProps(props: unknown): string | null {
   }
 
   const candidates = [
+    typeof record.__x_id === 'string' ? record.__x_id : null,
     typeof record.itemKey === 'string' ? record.itemKey : null,
     jidString(record.chatId),
     jidString(record.chat),
@@ -223,7 +237,7 @@ function bulkEntry(item: unknown): BulkEntry | null {
     if (typeof item === 'string') {
       const id = parseJid(item);
 
-      return id ? { id, name: null } : null;
+      return id ? { id, name: null, phone: null } : null;
     }
     if (!item || typeof item !== 'object') {
       return null;
@@ -233,6 +247,7 @@ function bulkEntry(item: unknown): BulkEntry | null {
     const data = record.data as Record<string, unknown> | undefined;
 
     const idCandidates: unknown[] = [
+      record.__x_id,
       record.itemKey,
       record._serialized,
       record.id,
@@ -256,7 +271,15 @@ function bulkEntry(item: unknown): BulkEntry | null {
       }
     }
 
-    return id ? { id, name: pickName(item) } : null;
+    if (!id) {
+      return null;
+    }
+
+    return {
+      id,
+      name: pickName(item),
+      phone: phoneField(record.__x_phoneNumber ?? record.phoneNumber),
+    };
   } catch {
     return null;
   }
@@ -270,6 +293,8 @@ function pickName(item: unknown): string | null {
 
     const record = item as Record<string, unknown>;
     const candidates: unknown[] = [
+      record.__x_name,
+      record.__x_shortName,
       record.name,
       record.formattedTitle,
       record.formattedName,
