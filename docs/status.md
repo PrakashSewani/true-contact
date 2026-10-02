@@ -8,7 +8,7 @@ rule 4. Keep exactly one phase `in progress`.
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Requirements + stack selection: fill `docs/product.md`, choose the stack, record D-001 | complete |
-| 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | in progress — scaffolded + verified; PR `bootstrap/phase-0-1` awaiting merge to `dev` |
+| 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | in progress — scaffolded + verified; PR #1 awaiting merge to `dev` |
 | 2 | Product: the core workflow, end to end | not started |
 | 3 | Promo site: the site that explains it and sends people to it | not started |
 | 4 | Launch: first release tagged, site deployed | not started |
@@ -31,6 +31,11 @@ password → 401); `wxt dev`/`wxt build` produce MV3 output; `astro dev`/`astro 
 placeholder; local D1 migration applies; release script exercised in a scratch copy (minor/patch,
 invalid arg, changelog section); workflows validated (YAML parse + jq/awk snippets run);
 deploy-key bypass proven with a throwaway ruleset + branch (then deleted).
+
+**Verifier pass (independent subagent):** all nine criteria passed; it found two defects — the
+release tag would not reach the remote (`--follow-tags` skips lightweight tags) and the
+fresh-clone quick-start lacked a build before `wrangler dev` — both fixed and re-verified
+(annotated tag + explicit ref push tested against a scratch remote; label edge cases covered).
 
 **Blocked by:** nothing. The first real release is still unproven end to end because no release
 has happened yet (no `v*` tag exists).
