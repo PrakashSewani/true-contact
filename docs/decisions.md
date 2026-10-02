@@ -458,3 +458,43 @@ Builds matches the connected Worker name automatically (`WRANGLER_CI_OVERRIDE_NA
 silent trap where CLI commands fail with "Worker does not exist".
 
 **Confirmed by user:** 2026-10-02 (names set during the dashboard launch setup).
+
+## D-018: Chunked, resumable import processing
+
+**Date:** 2026-10-02
+
+**Decision:** Import processing becomes cursor-based slices after the first real import
+(~1,100 contacts) exceeded the queue consumer's 15-minute wall-clock limit mid-run: the whole
+import ran in one invocation, was killed before it could record an error, and the queue's
+retry restarted it from scratch — leaving the import stuck at `processing` with ~200 contacts
+done. On the Workers **Free** plan (10 ms CPU, 50 subrequests and 100k requests per day; the
+user chose to stay on it) the redesign works inside those ceilings:
+
+- Each queue message carries `{ importId, cursor }`; an invocation processes one slice of
+  `IMPORT_CHUNK_SIZE` contacts (default 5 — bounded so ~8 D1 calls per contact stay under the
+  50-subrequest ceiling), persists progress, then enqueues the next slice.
+- `imports` grows `cursor`, `total`, and `progress_at` (migration 0003) for progress display,
+  stall detection, and resume; slices run strictly one at a time.
+- Idempotency: a slice skips contacts whose observation already exists for that import
+  (`external_id` match — always set for WhatsApp batches; file records without an id can
+  duplicate at most one partially-processed slice). Stats are derived from the database at
+  finalize, and the usage row uses the import id as its primary key, so retried finals can't
+  double-count.
+- Failure policy: the queue handler retries transient failures while queue `attempts` remain
+  and marks the import `failed` on the terminal attempt; a session-authenticated
+  `POST /api/imports/:id/resume` re-enqueues from the persisted cursor for stalled imports.
+- `GET /api/imports` and `:id` expose `cursor`/`total`/`progressAt` so the UI shows progress
+  and a resume affordance instead of an indefinite "processing".
+
+**Supersedes:** D-009's single-invocation processing and its "no automatic retry / mark failed
+in catch" policy (platform kills bypass the catch — the queue's retry lifecycle is the honest
+signal). D-009's matching, adoption, and conflict rules stand. Everything else about intake is
+unchanged.
+
+**Rejected:** processing a whole import per invocation (dies at the wall-clock limit);
+marking failed on caught errors only (misses platform kills); slices of 25-50 (exceed the
+subrequest ceiling on Free); Workers Paid (user's call — the design works on Free, just
+slower).
+
+**Confirmed by user:** 2026-10-02 (stay on Free plan; processing messaging should be
+progress-based rather than a fixed window).

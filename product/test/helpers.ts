@@ -1,6 +1,9 @@
 import { createExecutionContext, createMessageBatch, getQueueResult } from 'cloudflare:test';
 import { env, exports } from 'cloudflare:workers';
+import { eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/d1';
 import appWorker from '../src/api/index';
+import * as schema from '../src/db/schema';
 
 export const worker = exports.default;
 
@@ -63,9 +66,13 @@ export function apiRequest(
 }
 
 export function vcard(name: string, phone: string, email?: string): string {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const digits = phone.replace(/[^0-9]/g, '');
+
   return [
     'BEGIN:VCARD',
     'VERSION:3.0',
+    `UID:${slug}-${digits}`,
     `FN:${name}`,
     `TEL;TYPE=CELL:${phone}`,
     ...(email ? [`EMAIL:${email}`] : []),
@@ -84,16 +91,55 @@ export async function upload(cookie: string, fileName: string, content: string):
   return job.id;
 }
 
-export async function runQueue(importId: string): Promise<void> {
-  const batch = createMessageBatch('truecontact-imports', [
-    { id: crypto.randomUUID(), timestamp: new Date(), attempts: 1, body: { importId } },
-  ]);
-  const ctx = createExecutionContext();
+export interface RunQueueOptions {
+  chunkSize?: number;
+}
 
-  await (
-    appWorker as {
-      queue: (batch: MessageBatch, env: Env, ctx: ExecutionContext) => Promise<void>;
+export async function runQueue(importId: string, options: RunQueueOptions = {}): Promise<void> {
+  const mutableEnv = env as unknown as { IMPORT_CHUNK_SIZE: string };
+  const previousChunkSize = mutableEnv.IMPORT_CHUNK_SIZE;
+
+  if (options.chunkSize !== undefined) {
+    mutableEnv.IMPORT_CHUNK_SIZE = String(options.chunkSize);
+  }
+
+  const db = drizzle(env.DB, { schema });
+  const attempts = new Map<number, number>();
+
+  try {
+    for (let step = 0; step < 500; step += 1) {
+      const [job] = await db
+        .select({ status: schema.imports.status, cursor: schema.imports.cursor })
+        .from(schema.imports)
+        .where(eq(schema.imports.id, importId));
+
+      if (!job || job.status === 'complete' || job.status === 'failed') {
+        return;
+      }
+
+      const attempt = Math.min((attempts.get(job.cursor) ?? 0) + 1, 4);
+      attempts.set(job.cursor, attempt);
+
+      const batch = createMessageBatch('truecontact-imports', [
+        {
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+          attempts: attempt,
+          body: { importId, cursor: job.cursor },
+        },
+      ]);
+      const ctx = createExecutionContext();
+
+      await (
+        appWorker as {
+          queue: (batch: MessageBatch, env: Env, ctx: ExecutionContext) => Promise<void>;
+        }
+      ).queue(batch, env, ctx);
+      await getQueueResult(batch, ctx);
     }
-  ).queue(batch, env, ctx);
-  await getQueueResult(batch, ctx);
+
+    throw new Error(`import ${importId} did not finish`);
+  } finally {
+    mutableEnv.IMPORT_CHUNK_SIZE = previousChunkSize;
+  }
 }

@@ -11,7 +11,8 @@
     }
   ],
   "vars": {
-    "FREE_IMPORT_LIMIT": "1000"
+    "FREE_IMPORT_LIMIT": "1000",
+    "IMPORT_CHUNK_SIZE": "5"
   },
   "assets": {
     "binding": "ASSETS",
