@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-02
+
 ### Added
 
 - pnpm workspace scaffold: `product/` (Hono API + React SPA on a Cloudflare Worker with D1, R2,
