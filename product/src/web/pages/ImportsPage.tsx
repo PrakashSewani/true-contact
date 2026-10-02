@@ -10,6 +10,7 @@ export function ImportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pairing, setPairing] = useState<{ code: string; expiresAt: string } | null>(null);
   const [pairingBusy, setPairingBusy] = useState(false);
   const [pairingError, setPairingError] = useState<string | null>(null);
@@ -85,6 +86,26 @@ export function ImportsPage() {
     }
   }
 
+  async function handleDeleteAll() {
+    if (!window.confirm('Delete all contacts, imports, and history? This cannot be undone.')) {
+      return;
+    }
+
+    setBusyId('delete-all');
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await api.deleteAllData();
+      setNotice(`Deleted ${result.deletedContacts} contacts and all import data.`);
+      setVersion((value) => value + 1);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handlePairing() {
     setPairingBusy(true);
     setPairingError(null);
@@ -115,6 +136,7 @@ export function ImportsPage() {
       </div>
 
       {error && <p className="error">{error}</p>}
+      {notice && <p className="muted">{notice}</p>}
 
       <div className="panel">
         <h2>Import a file</h2>
@@ -217,6 +239,22 @@ export function ImportsPage() {
           })}
         </ul>
       )}
+
+      <div className="panel">
+        <h2>Danger zone</h2>
+        <p className="muted">
+          Delete all contacts, imports, and history from your account. This cannot be undone. Your
+          import-usage counter stays, since it tracks the free-tier limit.
+        </p>
+        <button
+          type="button"
+          className="button-secondary"
+          disabled={busyId === 'delete-all'}
+          onClick={() => void handleDeleteAll()}
+        >
+          Delete all data
+        </button>
+      </div>
     </section>
   );
 }
