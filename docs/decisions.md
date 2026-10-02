@@ -304,3 +304,21 @@ bearer token — WhatsApp credentials never exist anywhere in the flow:
 - Tokens are revocable by deleting the row; `last_used_at` updates on every push.
 
 **Confirmed by user:** 2026-10-02 (v1 scope D-004; pairing contract in `shared/src/pairing.ts`).
+
+## D-012: WhatsApp capture scope (extension v1)
+
+**Date:** 2026-10-02
+
+**Decision:** The extension captures only what WhatsApp Web legitimately renders:
+
+- The content script reads chat-list rows (`#pane-side [role="listitem"]`) — best effort against
+  WhatsApp's DOM — and emits normalized contacts: `externalId` = the chat JID from `data-id`,
+  the display name from the row title, and a phone (`+<digits>`) for numeric `@c.us` JIDs.
+  Groups and non-contact rows are skipped; only currently rendered rows are captured — no
+  scrolling, no access to WhatsApp's internal storage.
+- The popup sends `pair` / `scan` / `status` messages; the background service worker owns the
+  bearer token in `browser.storage.local` and performs the pushes.
+- The manifest allows `storage` plus host permissions for the local API origin
+  (`http://localhost:8787/*`); the deployed TrueContact origin is added at deploy time.
+
+**Confirmed by user:** 2026-10-02 (v1 scope D-004; pairing protocol D-011).

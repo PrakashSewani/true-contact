@@ -9,30 +9,31 @@ rule 4. Keep exactly one phase `in progress`.
 |---|---|---|
 | 0 | Requirements + stack selection: fill `docs/product.md`, choose the stack, record D-001 | complete |
 | 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | complete — merged to `dev` in PR #1 |
-| 2 | Product: the core workflow, end to end | in progress — pairing + extension import API landed; extension app + usage limits remain |
+| 2 | Product: the core workflow, end to end | in progress — extension app landed; usage limits remain |
 | 3 | Promo site: the site that explains it and sends people to it | not started |
 | 4 | Launch: first release tagged, site deployed | not started |
 
 ## Current handoff
 
-**Phase:** 2 — product core workflow; the extension pairing API landed, next slice is the
-extension app itself (WXT popup, background, WhatsApp Web content script), then usage limits.
+**Phase:** 2 — product core workflow; the extension app landed, next slice is usage limits, then
+phase 3 (promo site).
 
-**Done this session (stack continued):** stacks 1–6 (intake, reconciliation, contacts/review read
-API, review actions, web UI, export); stack-7 pairing API — `pairing_codes` + `extension_tokens`
-(migration `0002`, only SHA-256 token hashes stored), `POST /api/pairing/start` (session),
-`POST /api/pairing/exchange` (single-use code → 30-day bearer token), and
-`POST /api/imports/extension` accepting the shared `importBatchSchema`; the consumer now passes
-WhatsApp batches through the shared contract; pairing-code panel on the imports page.
+**Done this session (stack continued):** stacks 1–7 (intake, reconciliation, contacts/review read
+API, review actions, web UI, export, pairing API); stack-8 extension app — popup (TrueContact URL,
+pairing code, scan button, paired status), background service worker (pair/scan/status message
+routing, bearer token in `browser.storage.local`, batch push), WhatsApp Web content script
+(best-effort chat-list capture per D-012: JID as `externalId`, `@c.us` phones, groups skipped),
+and manifest host permissions for the local API origin (production origin to be added at deploy).
 
-**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (83 files),
-Vitest 57/57 (12 files), product/extension/site builds.
+**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (85 files),
+Vitest 57/57 (12 files), product/extension/site builds; the built MV3 manifest inspected
+(service worker + popup + content script, storage permission, host permission). Extension
+behavior against real WhatsApp Web still needs a manual load-and-scan session.
 
 **Blocked by:** nothing.
 
-**Next action:** the extension app (stack-8): WXT popup (pairing-code entry, scan button),
-background service worker (token storage in `browser.storage`, batch push), and the WhatsApp Web
-content script.
+**Next action:** the usage-limits slice (stack-9): free-tier limit configuration and enforcement
+on imports and exports.
 
 ---
 
