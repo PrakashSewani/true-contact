@@ -362,8 +362,7 @@ and shares only brand constants from `shared/` (D-001 dependency rule).
   outgrows it.
 - Client-side interactivity — nothing on the page requires it; static stays fast and robust.
 
-**Confirmed by user:** pending — phase-3 stack review (this entry lands with the site build and
-the `docs/product.md` section it records).
+**Confirmed by user:** 2026-10-02 (phase-3 stack reviewed and merged — PRs #14–#18).
 
 ## D-015: Production hostnames (prakashsewani.com)
 
@@ -390,3 +389,56 @@ domain now (unneeded cost; the migration stays cheap).
 
 **Confirmed by user:** 2026-10-02 (chose the product-named scheme over `app.prakashsewani.com`
 and deferring to a future domain).
+
+## D-016: Deployments through Cloudflare Workers Builds
+
+**Date:** 2026-10-02
+
+**Decision:** Product and promo-site deployments move from hand-run `wrangler deploy` commands
+to Cloudflare's Git integration (Workers Builds). Both Workers build and deploy automatically
+when `main` moves. CI (`pnpm check`) remains the PR gate and `main` stays PR-only, so a deploy
+happens exactly when a release merge lands — plus the release workflow's version-bump push,
+which redeploys identical code as a harmless second build.
+
+**Per-Worker connections** (production branch `main`, preview builds off):
+
+| Worker | Root directory | Build command | Deploy command | Build variables |
+|---|---|---|---|---|
+| `truecontact` | `product` | `pnpm install --frozen-lockfile && pnpm build` | `npx wrangler d1 migrations apply DB --remote && npx wrangler deploy` | `SKIP_DEPENDENCY_INSTALL=1`, `PNPM_VERSION=12.8.1` |
+| `truecontact-site` | `site` | `pnpm install --frozen-lockfile && pnpm build` | `npx wrangler deploy` | `SKIP_DEPENDENCY_INSTALL=1`, `PNPM_VERSION=12.8.1`, `PUBLIC_APP_URL=https://app.truecontact.prakashsewani.com` |
+
+- Install is explicit (`SKIP_DEPENDENCY_INSTALL=1` plus `pnpm install` in the build command)
+  because each build runs inside a pnpm workspace subdirectory; `PNPM_VERSION` pins the pnpm
+  that wrote `pnpm-lock.yaml` (12.8.1). Node stays on the build image default (24.x), which
+  satisfies the repo's `engines >=22` floor.
+- The `truecontact` build authenticates with a custom API token that extends Cloudflare's
+  generated build token with **D1: Edit** (the deploy command applies migrations) and
+  **Workers Queues: Edit** (the Worker binds a queue).
+- One-time setup stays manual and dashboard-driven: create D1 `truecontact`, R2
+  `truecontact-imports`, and queue `truecontact-imports`; set `BETTER_AUTH_SECRET` (secret) and
+  `BETTER_AUTH_URL` on the Worker. The real `database_id` must be committed to
+  `product/wrangler.jsonc` before the first build.
+- Manual `wrangler deploy` remains the emergency path; rollback is the Workers Builds version
+  rollback (dashboard) or `wrangler rollback`. The release flow itself — labeled `dev → main`
+  PR, version bump, tag, GitHub release — is unchanged. The extension build and store upload
+  stay manual.
+
+**Why:** the user asked for push-to-`main` automation through Cloudflare's own pipeline instead
+of hand-run deploys. Workers Builds owns account auth (generated token), deploys next to the
+resource configuration (bindings, routes, custom domains), and gives per-Worker build logs and
+retries without introducing a second CI system or a long-lived account credential.
+
+**Rejected**
+
+- Keeping manual `wrangler deploy` runs — the drift and toil the change removes.
+- A GitHub Actions deploy job with a `CLOUDFLARE_API_TOKEN` secret — duplicates the release
+  workflow's job and adds a long-lived account token to manage.
+- Preview builds on non-production branches — every branch push would build both Workers;
+  `pnpm check` in CI already gates PRs, so previews stay off.
+- Automating the Chrome Web Store submission — no Git-integrated path; stays manual.
+
+**Confirmed by user:** 2026-10-02 (chose dashboard-configured Workers Builds on `main` over
+manual deploys).
+
+**Supersedes:** the manual-deploy clauses in D-002, D-014, and D-015. One-time resource
+creation, secrets, and rollbacks remain manual, documented in the `ship-release` skill.

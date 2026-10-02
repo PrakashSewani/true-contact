@@ -94,12 +94,16 @@ the actual work completed, checks run and their observed result, blockers, and o
 - Release-related workflows run only after a merge to `main`. The release workflow updates the
    selected stack's version source, creates the matching `v<version>` tag, and publishes a GitHub
    release. A merge without a release label does not publish a release.
-- Deployments of the product or promo site remain manual. Do not deploy unless asked.
+- Deployments of the product and promo site run automatically from `main` through Cloudflare
+   Workers Builds (D-016); one-time setup, secrets, and rollbacks stay manual. Never trigger a
+   deploy outside the release flow.
 
-## Deployments are manual
+## Deployments
 
-Store submissions, registry publishing, and site deployments happen only when I ask for them.
-The project-specific procedures live in
+Product and promo sites deploy automatically from `main` through Cloudflare Workers Builds
+(D-016). Store submissions and registry publishing happen only when I ask for them, and the
+extension store upload stays manual. The project-specific setup, secrets, and rollback
+procedures live in
 [`.commandcode/skills/ship-release`](./.commandcode/skills/ship-release/SKILL.md) — follow them
 literally, do not invent deploy pipelines.
 
@@ -109,6 +113,7 @@ literally, do not invent deploy pipelines.
 - 2026-09-26: Use subagents only for sequential read-only discovery; the primary agent owns architecture and code generation.
 - 2026-10-02: v1 = core identity loop + WhatsApp extension, Cloudflare Workers hosting, self-hosted email/password auth, usage tracking without billing (D-001, D-004).
 - 2026-10-02: Deliver phase work as stacked PRs — each slice branches off the previous; retarget each PR to `dev` as its base merges; don't wait for merges between slices (D-008).
+- 2026-10-02: Deployments run automatically from `main` via Cloudflare Workers Builds; one-time setup, secrets, and rollbacks stay manual (D-016).
 
 <!-- One line per learned preference, dated. Examples:
 - 2026-09-18: Wants exact deploy commands, not auto-deploy pipelines.

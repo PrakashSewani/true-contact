@@ -27,7 +27,7 @@ adapter internals — the extension is one source adapter, not a dependency of t
 | Import pipeline | `product/src/imports` + `IMPORTS_QUEUE` consumer | Intake, chunked reconciliation against the graph, limit enforcement |
 | Raw imports | `IMPORTS_BUCKET` (R2) | Temporary raw payloads; minimized retention, never the canonical store |
 | WhatsApp connector | `extension/` | Captures legitimately available WhatsApp Web contact data and pushes normalized batches |
-| Promo site | `site/` | Static Astro landing page; assets-only Worker `truecontact-site`; deploys independently (`pnpm deploy`) |
+| Promo site | `site/` | Static Astro landing page; assets-only Worker `truecontact-site`; deploys independently from `main` (D-016) |
 
 Bindings in `product/wrangler.jsonc`: `DB` (D1), `IMPORTS_BUCKET` (R2), `IMPORTS_QUEUE`
 (Queues producer + consumer), `ASSETS` (SPA, `run_worker_first: ["/api/*"]`).
@@ -89,6 +89,9 @@ the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
   supports no newer date (checked 2026-10-02). Bump it together with `wrangler` and the pool.
 - D1's 10 GB per-database ceiling is far away at v1 scale; revisit if the graph approaches it.
 - Imports run as queue chunks; no Durable Objects yet (not needed at v1 scale).
+- Main-branch builds pin `PNPM_VERSION=12.8.1` and install the workspace explicitly
+  (`SKIP_DEPENDENCY_INSTALL=1`); the `truecontact` deploy command applies D1 migrations before
+  `wrangler deploy` (D-016).
 
 ## Branch and release flow
 
@@ -102,7 +105,9 @@ the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
   A merge without a release label publishes nothing.
 - The push to `main` authenticates with a repository-scoped deploy key (`truecontact-release`,
   write access) stored as the `RELEASE_DEPLOY_KEY` Actions secret — see `docs/decisions.md` D-005.
-- Deployments are manual; see `.commandcode/skills/ship-release/SKILL.md`.
+- Merges to `main` deploy both Workers through Cloudflare Workers Builds (root directories
+  `product`/`site`, production branch `main`, preview builds off — D-016); setup, secrets, and
+  rollback are in `.commandcode/skills/ship-release/SKILL.md`.
 
 ## Repository settings (configured 2026-10-02)
 
@@ -112,3 +117,15 @@ the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
 - `main` ruleset `main-protection`: require a pull request (0 approvals), no force pushes,
   no deletions; deploy keys bypass (used by the release workflow).
 - Deploy key `truecontact-release` (write access); Actions secret `RELEASE_DEPLOY_KEY`.
+
+## Production hostnames (D-015)
+
+- Product app: `app.truecontact.prakashsewani.com` → Worker `truecontact` (Custom Domain route
+  in `product/wrangler.jsonc`).
+- Promo site: `truecontact.prakashsewani.com` → Worker `truecontact-site` (Custom Domain route
+  in `site/wrangler.jsonc`).
+- The WhatsApp extension's `host_permissions` include the app origin; the `*.workers.dev`
+  hostnames remain a smoke-test fallback.
+
+Custom Domains create their DNS records and certificates automatically when the Worker first
+deploys.

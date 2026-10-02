@@ -10,32 +10,31 @@ rule 4. Keep exactly one phase `in progress`.
 | 0 | Requirements + stack selection: fill `docs/product.md`, choose the stack, record D-001 | complete |
 | 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | complete — merged to `dev` in PR #1 |
 | 2 | Product: the core workflow, end to end | complete — merged to `dev` in PRs #2–#12 |
-| 3 | Promo site: the site that explains it and sends people to it | in progress — requirements recorded (slice 1); landing page next |
-| 4 | Launch: first release tagged, site deployed | not started |
+| 3 | Promo site: the site that explains it and sends people to it | complete — merged to `dev` in PRs #14–#18 |
+| 4 | Launch: first release tagged, site deployed | in progress |
 
 ## Current handoff
 
-**Phase:** 3 — promo site, in progress: requirements and the landing page are built and stacked;
-merges pending.
+**Phase:** 4 — launch, in progress: deploy model recorded (D-016), resources created and the D1
+id wired — the release and the Workers Builds connection are next.
 
-**Done this stack:** promo-site requirements (`docs/product.md` "Promo site", D-014); the
-landing page — single static Astro page with the recorded section order (hero with the
-identity-card proof, problem compare, four steps, never/always trust panels, WhatsApp connector
-with pairing steps, pricing, FAQ, footer); production hostnames wired (D-015) —
-`truecontact.prakashsewani.com` (site) and `app.truecontact.prakashsewani.com` (product) as
-Worker Custom Domains, extension host permission added; favicon + robots.txt.
+**Done this stack:** phase-3 review recorded (status, architecture hostnames, D-014 confirmed);
+deployments move to Cloudflare Workers Builds — per-Worker connection settings and the one-time
+dashboard setup steps recorded in the `ship-release` skill (D-016); dashboard resources created
+(`truecontact` D1, `truecontact-imports`) and the real `database_id` wired into
+`product/wrangler.jsonc`.
 
-**Verified:** `pnpm check` exit 0 (typecheck all four packages, Biome clean, Vitest 61/61, all
-builds, wrangler dry-run with the custom-domain routes and no Cloudflare account). Browser smoke
-test on the built site (`astro preview`, agent-browser): 1280px in light and dark, 375px mobile
-with no horizontal overflow, FAQ open state, skip-link focus ring, and the reduced-motion path.
+**Verified:** `pnpm check` exit 0 (typecheck ×4, Biome clean, Vitest 61/61, all builds,
+wrangler dry-run); CI green on #14–#18 and on the `dev` merge; phase-3 browser re-smoke —
+1280px light + dark, 375px mobile without horizontal overflow, FAQ toggle, skip-link focus, axe
+clean (WCAG 2 A/AA, 0 violations).
 
-**Blocked by:** nothing — the phase-3 stack (#14–#16 and this slice) is under review and merges
-are pending.
+**Blocked by:** the phase-4 stack merges (#20–#22); the Workers Builds connection happens after
+the release lands (a connection's first build deploys whatever `main` currently holds).
 
-**Next action:** after the stack merges to `dev`: phase 4 — first release (labeled `dev` → `main`
-PR), then manual deploys per the `ship-release` skill (product: D1/R2/Queues + secrets with
-`BETTER_AUTH_URL`; site: `PUBLIC_APP_URL`; extension packaging).
+**Next action:** merge the stack; then open the `release:major` `dev` → `main` release PR
+(v1.0.0) — after it merges, connect Workers Builds per the `ship-release` skill (build API
+token + settings) and verify the first deploy.
 
 ---
 
