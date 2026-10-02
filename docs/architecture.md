@@ -99,6 +99,9 @@ the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
 - `.github/workflows/ci.yml` runs `pnpm check` on every pull request and on pushes to `dev`
   (stacked PRs target feature branches; see D-008).
 - Releases are a PR from `dev` to `main` carrying exactly one `release:patch|minor|major` label.
+- The first release needed a one-time history reconciliation: `main` (a template-only root) and
+  `dev` (its own root) had no common history, so `main` was merged into `dev` with
+  `git merge -s ours` (PR #25, which changes no files) — release PRs are possible from then on.
 - On merge to `main`, `.github/workflows/release.yml` validates the single label, runs
   `scripts/release.mjs` (bumps the root `package.json` version and opens a new CHANGELOG section),
   runs `pnpm check`, commits the bump, tags `v<version>`, pushes, and publishes a GitHub release.
