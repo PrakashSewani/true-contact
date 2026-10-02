@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { createAuth } from './auth';
+import { contactRoutes } from './contacts';
 import { importRoutes } from './imports';
 import { getSessionUser } from './session';
 
@@ -23,6 +24,7 @@ export function createApp() {
   });
 
   app.route('/', importRoutes);
+  app.route('/', contactRoutes);
 
   return app;
 }

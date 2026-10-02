@@ -1,4 +1,6 @@
-import { exports } from 'cloudflare:workers';
+import { createExecutionContext, createMessageBatch, getQueueResult } from 'cloudflare:test';
+import { env, exports } from 'cloudflare:workers';
+import appWorker from '../src/api/index';
 
 export const worker = exports.default;
 
@@ -58,4 +60,40 @@ export function apiRequest(
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     }),
   );
+}
+
+export function vcard(name: string, phone: string, email?: string): string {
+  return [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    `FN:${name}`,
+    `TEL;TYPE=CELL:${phone}`,
+    ...(email ? [`EMAIL:${email}`] : []),
+    'END:VCARD',
+  ].join('\r\n');
+}
+
+export async function upload(cookie: string, fileName: string, content: string): Promise<string> {
+  const response = await apiRequest('/api/imports', { cookie, body: { fileName, content } });
+
+  if (response.status !== 201) {
+    throw new Error(`upload failed with status ${response.status}`);
+  }
+
+  const { import: job } = (await response.json()) as { import: { id: string } };
+  return job.id;
+}
+
+export async function runQueue(importId: string): Promise<void> {
+  const batch = createMessageBatch('truecontact-imports', [
+    { id: crypto.randomUUID(), timestamp: new Date(), attempts: 1, body: { importId } },
+  ]);
+  const ctx = createExecutionContext();
+
+  await (
+    appWorker as {
+      queue: (batch: MessageBatch, env: Env, ctx: ExecutionContext) => Promise<void>;
+    }
+  ).queue(batch, env, ctx);
+  await getQueueResult(batch, ctx);
 }

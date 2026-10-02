@@ -9,33 +9,29 @@ rule 4. Keep exactly one phase `in progress`.
 |---|---|---|
 | 0 | Requirements + stack selection: fill `docs/product.md`, choose the stack, record D-001 | complete |
 | 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | complete — merged to `dev` in PR #1 |
-| 2 | Product: the core workflow, end to end | in progress — intake + reconciliation landed; contacts API next |
+| 2 | Product: the core workflow, end to end | in progress — intake + reconciliation + contacts read API landed; review actions next |
 | 3 | Promo site: the site that explains it and sends people to it | not started |
 | 4 | Launch: first release tagged, site deployed | not started |
 
 ## Current handoff
 
-**Phase:** 2 — product core workflow; reconciliation landed, next slice is the contacts API and
-review actions.
+**Phase:** 2 — product core workflow; contacts + review read API landed, next slice is the review
+actions (confirm/reject/resolve/merge/split/edit).
 
-**Done this session:** stacked-PR delivery adopted (D-008; CI runs on every PR); intake API landed
-(stack-1: upload → R2 → queue); recorded D-009 and implemented the reconciliation slice (stack-2):
-the `IMPORTS_QUEUE` consumer parses the raw payload (`parseVCard`/`parseCsv`), records
-observations + identifiers, and reconciles per D-009 — exact identifier auto-link (proposed when
-ambiguous), name-similarity proposals, new identities seeded with values, `value_added` on new
-values, `conflicts` on differing display names, history events throughout, import stats and one
-`usage_operations` row; failures mark the import failed and ack. Match normalization helpers
-(`normalizePhoneForMatch`, `normalizeEmailForMatch`, `normalizeNameForMatch`).
+**Done this session:** stacked-PR delivery adopted (D-008; CI on every PR); intake API (stack-1);
+reconciliation consumer (stack-2); contacts read API (stack-3) — `GET /api/contacts` (canonical
+values, open-conflict and proposal counts, last observed), `GET /api/contacts/:id` (values,
+observations with links, conflicts, history), `GET /api/review` (open conflicts + proposed
+links), all tenant-scoped; shared pipeline test helpers.
 
-**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (65 files),
-Vitest 37/37 (api + normalize + schema + vCard + CSV + imports + matching + processing),
-product/extension/site builds all green.
+**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (67 files),
+Vitest 41/41 (9 files), product/extension/site builds all green.
 
 **Blocked by:** nothing.
 
-**Next action:** the contacts API slice (stack-3): list/detail identities with values,
-observations, links, conflicts, and history; the review queue; merge/split/edit/resolve actions
-appending user history events.
+**Next action:** the review-actions slice (stack-4): confirm/reject proposed links (reject creates
+the observation's own contact), resolve conflicts, merge and split identities, edit
+displayName/notes/values — every change appending a user-actor history event.
 
 ---
 

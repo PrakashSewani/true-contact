@@ -1,46 +1,11 @@
-import { createExecutionContext, createMessageBatch, getQueueResult } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { describe, expect, it } from 'vitest';
-import appWorker from '../src/api/index';
 import * as schema from '../src/db/schema';
-import { apiRequest, registerUser } from './helpers';
+import { registerUser, runQueue, upload, vcard } from './helpers';
 
 const db = drizzle(env.DB, { schema });
-
-function vcard(name: string, phone: string, email?: string): string {
-  return [
-    'BEGIN:VCARD',
-    'VERSION:3.0',
-    `FN:${name}`,
-    `TEL;TYPE=CELL:${phone}`,
-    ...(email ? [`EMAIL:${email}`] : []),
-    'END:VCARD',
-  ].join('\r\n');
-}
-
-async function upload(cookie: string, fileName: string, content: string): Promise<string> {
-  const response = await apiRequest('/api/imports', { cookie, body: { fileName, content } });
-  expect(response.status).toBe(201);
-
-  const { import: job } = (await response.json()) as { import: { id: string } };
-  return job.id;
-}
-
-async function runQueue(importId: string): Promise<void> {
-  const batch = createMessageBatch('truecontact-imports', [
-    { id: crypto.randomUUID(), timestamp: new Date(), attempts: 1, body: { importId } },
-  ]);
-  const ctx = createExecutionContext();
-
-  await (
-    appWorker as {
-      queue: (batch: MessageBatch, env: Env, ctx: ExecutionContext) => Promise<void>;
-    }
-  ).queue(batch, env, ctx);
-  await getQueueResult(batch, ctx);
-}
 
 describe('import processing', () => {
   it('processes a fresh vCard import into new identities', async () => {
