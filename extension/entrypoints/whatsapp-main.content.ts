@@ -31,7 +31,7 @@ export default defineContentScript({
           source: 'truecontact-connector-page',
           type: 'capture-result',
           nonce: data.nonce,
-          rows: captureRowIds(),
+          rows: captureRows(),
           bulk: captureBulk(),
         },
         '*',
@@ -63,20 +63,70 @@ function phoneField(value: unknown): string | null {
   return number && server === 'c.us' ? `${number}@c.us` : null;
 }
 
-function captureRowIds(): (string | null)[] {
+const PHONE_KEYS = ['__x_phoneNumber', 'phoneNumber'];
+const RELATION_KEYS = ['contact', 'data', 'chat'];
+
+function findPhone(value: unknown, depth: number): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || depth > 3) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  for (const key of PHONE_KEYS) {
+    const phone = phoneField(record[key]);
+    if (phone) {
+      return phone;
+    }
+  }
+
+  for (const key of RELATION_KEYS) {
+    const phone = findPhone(record[key], depth + 1);
+    if (phone) {
+      return phone;
+    }
+  }
+
+  return null;
+}
+
+interface RowCapture {
+  id: string | null;
+  phone: string | null;
+}
+
+function captureRows(): RowCapture[] {
   const rows = Array.from(document.querySelectorAll('[role="listitem"]'));
 
   return rows.map((row) => {
     try {
-      return findRowId(row);
+      return findRowCapture(row);
     } catch {
-      return null;
+      return { id: null, phone: null };
     }
   });
 }
 
-function findRowId(row: Element): string | null {
+function findRowCapture(row: Element): RowCapture {
   let node: Element | null = row;
+  let id: string | null = null;
+  let phone: string | null = null;
+
+  const scan = (props: unknown) => {
+    if (!props || typeof props !== 'object') {
+      return;
+    }
+
+    const propsId = idFromProps(props);
+    if (!propsId) {
+      return;
+    }
+
+    id ??= propsId;
+    // Bind the number to a level that carries this row's id, so a shared
+    // ancestor can never attach another chat's contact to this row.
+    phone ??= findPhone(props, 0);
+  };
 
   for (let depth = 0; node && depth < 6; depth += 1, node = node.parentElement) {
     const record = node as unknown as Record<string, unknown>;
@@ -84,26 +134,20 @@ function findRowId(row: Element): string | null {
     const fiberKey = Object.keys(record).find((key) => key.startsWith('__reactFiber$'));
 
     if (propsKey) {
-      const id = idFromProps(record[propsKey]);
-      if (id) {
-        return id;
-      }
+      scan(record[propsKey]);
     }
 
     if (fiberKey) {
       let fiber = record[fiberKey] as FiberLike | null | undefined;
 
       for (let level = 0; fiber && level < 30; level += 1) {
-        const id = idFromProps(fiber.memoizedProps);
-        if (id) {
-          return id;
-        }
+        scan(fiber.memoizedProps);
         fiber = fiber.return ?? null;
       }
     }
   }
 
-  return null;
+  return { id, phone };
 }
 
 function idFromProps(props: unknown): string | null {
@@ -278,7 +322,7 @@ function bulkEntry(item: unknown): BulkEntry | null {
     return {
       id,
       name: pickName(item),
-      phone: phoneField(record.__x_phoneNumber ?? record.phoneNumber),
+      phone: findPhone(item, 0),
     };
   } catch {
     return null;

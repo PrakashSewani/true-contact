@@ -24,8 +24,13 @@ export default defineContentScript({
 
 const ROW_SELECTOR = '[role="listitem"]';
 
+interface RowCapture {
+  id: string | null;
+  phone: string | null;
+}
+
 interface PageCapture {
-  rows: (string | null)[];
+  rows: RowCapture[];
   bulk: BulkEntry[];
 }
 
@@ -51,7 +56,8 @@ async function captureContacts(): Promise<CaptureResult> {
   let sampleJid: string | null = null;
 
   for (const [index, row] of rows.entries()) {
-    const jid = capture?.rows[index] ?? null;
+    const rowInfo = capture?.rows[index];
+    const jid = rowInfo?.id ?? null;
     const title = chatName(row);
 
     if (index === 0) {
@@ -64,7 +70,7 @@ async function captureContacts(): Promise<CaptureResult> {
     jidRows += 1;
     sampleJid ??= jid;
 
-    const phoneJid = jid.endsWith('@c.us') ? jid : (phonesById.get(jid) ?? '');
+    const phoneJid = rowInfo?.phone ?? (jid.endsWith('@c.us') ? jid : (phonesById.get(jid) ?? ''));
     const phone = phoneOf(phoneJid);
     const name = title !== '' ? title : (namesById.get(jid) ?? phone ?? '');
 
@@ -161,7 +167,16 @@ async function requestCapture(): Promise<PageCapture | null> {
 
       cleanup();
       resolve({
-        rows: data.rows.map((value) => (typeof value === 'string' ? value : null)),
+        rows: data.rows.map((value) => {
+          if (!value || typeof value !== 'object') {
+            return { id: null, phone: null };
+          }
+          const record = value as { id?: unknown; phone?: unknown };
+          return {
+            id: typeof record.id === 'string' ? record.id : null,
+            phone: typeof record.phone === 'string' ? record.phone : null,
+          };
+        }),
         bulk: data.bulk
           .map((value) => {
             if (!value || typeof value !== 'object') {
