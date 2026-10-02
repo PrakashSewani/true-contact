@@ -9,32 +9,29 @@ rule 4. Keep exactly one phase `in progress`.
 |---|---|---|
 | 0 | Requirements + stack selection: fill `docs/product.md`, choose the stack, record D-001 | complete |
 | 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | complete — merged to `dev` in PR #1 |
-| 2 | Product: the core workflow, end to end | in progress — schema + file parsers landed; intake pipeline next |
+| 2 | Product: the core workflow, end to end | in progress — all slices built and stacked (schema → limits); merges pending |
 | 3 | Promo site: the site that explains it and sends people to it | not started |
 | 4 | Launch: first release tagged, site deployed | not started |
 
 ## Current handoff
 
-**Phase:** 2 — product core workflow; file parsers landed, next slice is the import intake
-pipeline.
+**Phase:** 2 — every slice is built and stacked; waiting on the stack merging before phase 3.
 
-**Done this session:** recorded D-007 (parsers, formats, dependencies); added `vcf@2.1.2`,
-`papaparse@5.7.0`, and `@types/papaparse@5.5.2` to the product; implemented `parseVCard` (a thin
-adapter over `vcf`: QUOTED-PRINTABLE decoding, `tel:` URI stripping, TYPE→label mapping, text
-unescaping, UID as `externalId`, FN → N fallback) and `parseCsv` (papaparse with case-insensitive
-header aliases, delimiter auto-detect, `;`-separated multi-value cells); both return
-`{ contacts, skipped }` — malformed records are reported, never thrown; 14 parser tests; refreshed
-the domain row in `docs/architecture.md`.
+**Done this session (stack continued):** stacks 1–8 (intake, reconciliation, contacts/review read
+API, review actions, web UI, export, pairing API, extension app); stack-9 usage limits —
+`FREE_IMPORT_LIMIT` var (default 1000), an intake gate returning `402` once the lifetime imported
+contact usage reaches the limit (file uploads and extension pushes), usage reported on
+`GET /api/imports` and shown on the imports page (D-013).
 
-**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (56 files),
-Vitest 24/24 (api + normalize + schema + vCard + CSV), product/extension/site builds all green.
+**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (87 files),
+Vitest 61/61 (13 files), product/extension/site builds. (The web UI also went through a real
+browser smoke test in stack-5; the extension is build-verified and needs a manual WhatsApp Web
+session to exercise capture.)
 
-**Blocked by:** nothing. Known open item: the release path is still unproven until the first
-tagged release.
+**Blocked by:** nothing.
 
-**Next action:** implement the import intake slice — an authenticated upload endpoint that stores
-the raw payload in `IMPORTS_BUCKET` (R2), creates the `sources`/`imports` rows, and enqueues to
-`IMPORTS_QUEUE`; then the consumer that turns observations into identities, links, and conflicts.
+**Next action:** after the stack merges to `dev`, phase 3 — build out the promo site (real
+landing page, deploy-ready).
 
 ---
 

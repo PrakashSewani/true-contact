@@ -92,8 +92,8 @@ Auth tables (`user`, `session`, `account`, `verification`) exist alongside.
 ## Branch and release flow
 
 - `dev` is the default integration branch; changes arrive through PRs targeting `dev`.
-- `.github/workflows/ci.yml` runs `pnpm check` on pull requests targeting `dev` or `main`, and on
-  pushes to `dev`.
+- `.github/workflows/ci.yml` runs `pnpm check` on every pull request and on pushes to `dev`
+  (stacked PRs target feature branches; see D-008).
 - Releases are a PR from `dev` to `main` carrying exactly one `release:patch|minor|major` label.
 - On merge to `main`, `.github/workflows/release.yml` validates the single label, runs
   `scripts/release.mjs` (bumps the root `package.json` version and opens a new CHANGELOG section),

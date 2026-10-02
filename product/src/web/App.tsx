@@ -1,7 +1,11 @@
 import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { authClient } from './auth-client';
-import { HomePage } from './pages/HomePage';
+import { AppLayout } from './components/AppLayout';
+import { ContactPage } from './pages/ContactPage';
+import { ContactsPage } from './pages/ContactsPage';
+import { ImportsPage } from './pages/ImportsPage';
+import { ReviewPage } from './pages/ReviewPage';
 import { SignInPage } from './pages/SignInPage';
 
 export function App() {
@@ -10,13 +14,17 @@ export function App() {
       <Routes>
         <Route path="/sign-in" element={<SignInPage />} />
         <Route
-          path="/"
           element={
             <RequireSession>
-              <HomePage />
+              <AppLayout />
             </RequireSession>
           }
-        />
+        >
+          <Route path="/" element={<ContactsPage />} />
+          <Route path="/contacts/:id" element={<ContactPage />} />
+          <Route path="/review" element={<ReviewPage />} />
+          <Route path="/imports" element={<ImportsPage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
