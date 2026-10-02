@@ -39,7 +39,8 @@ pnpm --filter @truecontact/product build         # creates dist/web — wrangler
 - `BETTER_AUTH_SECRET` — a long random string; required for auth to work locally
 - `BETTER_AUTH_URL` — the browser-facing origin (`http://localhost:5173` in development)
 
-In production these are Cloudflare secrets (`wrangler secret put`), set during a manual deploy.
+In production these are set once on the Worker (dashboard **Variables and Secrets**, or
+`wrangler secret put`); deploys themselves are automated (D-016).
 
 ## Tests
 
@@ -53,8 +54,12 @@ Create release PRs from `dev` to `main` and apply exactly one release label:
 `release:patch`, `release:minor`, or `release:major`. On merge, release automation runs only from
 `main`: it bumps the root `package.json` version and `CHANGELOG.md`, runs the checks, commits the
 bump, creates the matching `v<version>` tag, and publishes a GitHub release. Merges without a
-release label do not publish a release. Product and site deployments remain manual; see
+release label do not publish a release. Product and site deployments run automatically from
+`main` through Cloudflare Workers Builds (D-016) — one-time setup, build settings, secrets, and
+rollback are in
 [`.commandcode/skills/ship-release/SKILL.md`](../.commandcode/skills/ship-release/SKILL.md).
+Manual `wrangler deploy` remains available for emergencies, and the extension stays a manual
+build/zip + store upload.
 
 To preview the version bump locally without touching the repo, copy `package.json` and
 `CHANGELOG.md` into a scratch directory and run `node scripts/release.mjs <bump>` there.

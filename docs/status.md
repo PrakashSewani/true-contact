@@ -15,23 +15,25 @@ rule 4. Keep exactly one phase `in progress`.
 
 ## Current handoff
 
-**Phase:** 3 — complete: the promo-site stack merged to `dev` (#14–#18) and was re-verified
-against the docs, end to end.
+**Phase:** 4 — launch, in progress: deploy model recorded (D-016); the one-time Cloudflare setup
+is next.
 
-**Done this stack:** phase-3 review — the site matches the recorded section order and the D-015
-hostnames are wired (product route, site route, extension host permission); this slice records
-the verification result in the tracker and the hostnames in `docs/architecture.md`, and closes
-D-014's user confirmation.
+**Done this stack:** phase-3 review recorded (status, architecture hostnames, D-014 confirmed);
+deployments move to Cloudflare Workers Builds — per-Worker connection settings and the one-time
+dashboard setup steps recorded in the `ship-release` skill (D-016).
 
 **Verified:** `pnpm check` exit 0 (typecheck ×4, Biome clean, Vitest 61/61, all builds,
-wrangler dry-run); CI green on #14–#18 and on the `dev` merge; browser re-smoke on the built
-site — 1280px light + dark, 375px mobile with no horizontal overflow, FAQ toggle, skip-link
-focus, and an axe audit at WCAG 2 A/AA with 0 violations.
+wrangler dry-run); CI green on #14–#18 and on the `dev` merge; phase-3 browser re-smoke —
+1280px light + dark, 375px mobile without horizontal overflow, FAQ toggle, skip-link focus, axe
+clean (WCAG 2 A/AA, 0 violations).
 
-**Blocked by:** nothing — phase 3 is closed.
+**Blocked by:** the one-time Cloudflare setup — create D1/R2/Queues; the D1 database ID must be
+wired into `product/wrangler.jsonc` and reach `main` before the builds connect (a connection's
+first build deploys whatever `main` currently holds).
 
-**Next action:** phase 4 — launch: the Workers Builds deploy setup (next slice) and the labeled
-`release:major` `dev` → `main` release PR (v1.0.0).
+**Next action:** wire the real D1 id (next slice), then open the `release:major` `dev` → `main`
+release PR (v1.0.0); after it merges, connect Workers Builds per the `ship-release` skill and
+verify the first deploy.
 
 ---
 

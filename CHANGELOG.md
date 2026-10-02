@@ -48,3 +48,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 - Renamed the template to TrueContact; replaced the brief, stack decision, architecture, and
   development docs with the real ones (`docs/decisions.md` D-001, D-004, D-005).
+- Deployments: `main` now builds and deploys both Workers through Cloudflare Workers Builds
+  (D-016); the product deploy applies D1 migrations before `wrangler deploy`, and manual wrangler
+  runs are reserved for rollback/emergency.

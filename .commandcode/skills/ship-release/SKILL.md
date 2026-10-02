@@ -1,6 +1,6 @@
 ---
 name: ship-release
-description: Explain the automated release path and perform manual product/site deployments when asked. The release workflow is filled in at bootstrap time.
+description: Release and deploy guide — the automated GitHub release flow, the Cloudflare Workers Builds setup for product and site, and the manual rollback procedures.
 license: MIT
 metadata:
   template: true-contact
@@ -17,12 +17,14 @@ metadata:
   `release:major` label. A merge without one of these labels does not publish a release.
 - **Version source of truth:** the chosen stack's manifest. The workflow applies the labeled bump,
   creates a `v<version>` tag matching the manifest, and publishes a GitHub release.
-- **Deployments are manual.** Give the user exact, copy-pasteable commands; never deploy without
-  being asked.
-- **Record the real procedure here** when the stack is chosen (see "Procedure" below), including
-  the automated release workflow, artifact handling, and failure path — how to yank a bad release.
+- **Deploy trigger:** product and promo site deploy from `main` through Cloudflare Workers Builds
+  (D-016). Never push to `main` outside the release PR flow and never trigger a production
+  deploy ad hoc.
+- **Manual Cloudflare actions are one-time setup, secrets, and rollbacks only.** Give exact,
+  copy-pasteable steps; follow this skill literally; do not invent deploy pipelines.
+- Extension packaging is manual and the Chrome Web Store submission happens only when asked.
 
-## Procedure — TrueContact (filled in at bootstrap, 2026-10-02)
+## Procedure — TrueContact (deploy model updated 2026-10-02, D-016)
 
 ### Automated release (GitHub Actions)
 
@@ -39,45 +41,97 @@ metadata:
    ruleset grants deploy keys bypass — see D-005).
 5. **GitHub release** — `gh release create v<version>` with notes extracted from the changelog.
 
-### Manual deploys (only when asked)
+### Automated deploy (Cloudflare Workers Builds, D-016)
+
+Both Workers connect to this repository with production branch `main`; preview builds are
+disabled, so only `main` pushes build. A release produces two builds — the merge commit and the
+version-bump commit — deploying identical code.
+
+| Worker | Root directory | Build command | Deploy command | Build variables |
+|---|---|---|---|---|
+| `truecontact` | `product` | `pnpm install --frozen-lockfile && pnpm build` | `npx wrangler d1 migrations apply DB --remote && npx wrangler deploy` | `SKIP_DEPENDENCY_INSTALL=1`, `PNPM_VERSION=12.8.1` |
+| `truecontact-site` | `site` | `pnpm install --frozen-lockfile && pnpm build` | `npx wrangler deploy` | `SKIP_DEPENDENCY_INSTALL=1`, `PNPM_VERSION=12.8.1`, `PUBLIC_APP_URL=https://app.truecontact.prakashsewani.com` |
+
+- Build logs, retries, and rollbacks: Worker → **Deployments** → **Build History**.
+- Preview builds stay off per Worker (**Settings** → **Build** → **Branch control** →
+  **Enable Preview Builds** unchecked), so only `main` pushes build.
+- Install is explicit because the builds run inside a pnpm workspace subdirectory; Node uses the
+  build image default (24.x, satisfies `engines >=22`).
+
+### One-time setup (dashboard)
+
+> Planned procedure — exercise it once against the real account before trusting it, then update
+> this section with observed results.
+
+Prerequisites: the repository is connected to GitHub, and the Cloudflare account owns the
+`prakashsewani.com` zone.
+
+1. **Create the resources** (Cloudflare dashboard):
+   - **D1** — Workers & Pages → D1 SQL Database → Create database → `truecontact`. Copy the
+     database ID.
+   - **R2** — R2 → Create bucket → `truecontact-imports`.
+   - **Queues** — Workers & Pages → Queues → Create queue → `truecontact-imports`.
+
+   The D1 database ID must be wired into `product/wrangler.jsonc` (`database_id`) and released to
+   `main` before the builds connect — the connection's first build deploys whatever `main`
+   currently holds.
+
+2. **Create the build API token** — My Profile → API Tokens → Create Token:
+   - Account: Workers Scripts **Edit**, Workers Routes **Edit**, Workers Queues **Edit**,
+     Workers R2 Storage **Edit**, D1 **Edit**, Account Settings **Read**
+   - Zone (`prakashsewani.com`): Workers Routes **Edit**
+   - User: User Details **Read**, Memberships **Read**
+
+   (Cloudflare's auto-generated build token already includes most of these — D1 and Queues are
+   the additions that matter.)
+
+3. **Release `dev` → `main`** (labeled `release:*` PR) so `main` carries the real D1 id and the
+   v1.0.0 code. Do this before connecting builds.
+
+4. **Connect `truecontact`** — Workers & Pages → Create application → Import a repository →
+   GitHub → this repository → configure with the `truecontact` row from the table above, select
+   the token from step 2, disable preview builds, save and deploy. Then on the new Worker
+   (**Settings** → **Variables and Secrets**) add:
+   - `BETTER_AUTH_SECRET` — secret; generate with `openssl rand -base64 32`
+   - `BETTER_AUTH_URL` — `https://app.truecontact.prakashsewani.com`
+
+   Deploy the variables (or `npx wrangler secret put …` once the Worker exists).
+
+5. **Connect `truecontact-site`** — same import flow with the `truecontact-site` row from the
+   table above (including the `PUBLIC_APP_URL` build variable), preview builds off.
+
+6. **Verify the first deploy** — build ends green in Build History; `https://app.truecontact.prakashsewani.com/api/health`
+   answers; `https://truecontact.prakashsewani.com` serves the landing page with CTA links
+   pointing at the app origin.
+
+### Emergency manual deploys (only when asked)
 
 Prerequisites: `wrangler login` on the machine doing the deploy.
 
 **Product** (from `product/`):
 
 ```bash
-npx wrangler d1 create truecontact        # once — put the returned id into wrangler.jsonc
-npx wrangler r2 bucket create truecontact-imports   # once
-npx wrangler queues create truecontact-imports      # once
-npx wrangler d1 migrations apply DB --remote        # apply migrations
-npx wrangler secret put BETTER_AUTH_SECRET          # long random string
-npx wrangler secret put BETTER_AUTH_URL             # https://app.truecontact.prakashsewani.com (D-015)
-pnpm build && pnpm deploy                          # vite build + wrangler deploy
+npx wrangler d1 migrations apply DB --remote
+pnpm build && pnpm deploy
 ```
-
-The first deploy also creates the `app.truecontact.prakashsewani.com` Custom Domain (the route
-in `product/wrangler.jsonc`) with its DNS record and certificate automatically (D-015).
 
 **Promo site** (from `site/`):
 
 ```bash
-PUBLIC_APP_URL=https://app.truecontact.prakashsewani.com pnpm deploy   # astro build && wrangler deploy (assets-only Worker "truecontact-site")
+PUBLIC_APP_URL=https://app.truecontact.prakashsewani.com pnpm deploy
 ```
 
-`PUBLIC_APP_URL` fills the site's call-to-action links; without it they fall back to the
-`app.truecontact.example` placeholder (D-014). Deploy also creates this Worker's Custom Domain
-`truecontact.prakashsewani.com`; the canonical URL stays a deploy-time nicety (D-015).
-
 **Extension** (from `extension/`): `pnpm build && pnpm zip`, then upload the zip in the Chrome
-Web Store developer dashboard. Not automated.
-
-_These deploy commands are the planned procedure; they have not been exercised yet because no
-deploy has happened. Run them once against the real account before trusting them._
+Web Store developer dashboard.
 
 ### Failure path / rollback
 
-- **Bad worker deploy:** `npx wrangler rollback` (or `wrangler deployments list` then rollback to
-  a specific version). The site is an assets-only Worker, same commands.
+- **Bad deploy:** Workers Builds → Deployments → roll back to a previous version (dashboard), or
+  `npx wrangler rollback` (or `wrangler deployments list` then rollback to a specific version);
+  then fix forward with a new release.
+- **Failing build:** Deployments → Build History → open the build (logs) and retry it from the
+  ellipsis menu. Install failures point at `PNPM_VERSION` / lockfile drift; authorization
+  failures point at the build API token.
 - **Bad release:** delete the GitHub release and tag (`gh release delete v<version> --yes`,
   `git push origin :v<version>`), then re-merge a corrected release PR with the same label.
 - **Bad extension submission:** publish a fixed version to the store; no rollback path exists for
