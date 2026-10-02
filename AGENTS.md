@@ -108,6 +108,7 @@ literally, do not invent deploy pipelines.
 - 2026-09-26: Use `dev` as the default; agent changes go through PRs to `dev`, and labeled releases run only from `main`.
 - 2026-09-26: Use subagents only for sequential read-only discovery; the primary agent owns architecture and code generation.
 - 2026-10-02: v1 = core identity loop + WhatsApp extension, Cloudflare Workers hosting, self-hosted email/password auth, usage tracking without billing (D-001, D-004).
+- 2026-10-02: Deliver phase work as stacked PRs — each slice branches off the previous; retarget each PR to `dev` as its base merges; don't wait for merges between slices (D-008).
 
 <!-- One line per learned preference, dated. Examples:
 - 2026-09-18: Wants exact deploy commands, not auto-deploy pipelines.

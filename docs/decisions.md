@@ -206,3 +206,55 @@ with an index and a reason so an import can report them.
 - Header-less CSVs treated positionally — ambiguous; a recognized name column is required.
 
 **Confirmed by user:** 2026-10-02 (vcf + thin adapter; papaparse; aliases + auto-detect).
+
+## D-008: Stacked PR delivery for phase work
+
+**Date:** 2026-10-02
+
+**Decision:** Phase work is delivered as a stack of pull requests: each slice branches off the
+previous slice's branch and its PR targets that branch until the base is merged, at which point
+it is retargeted to `dev` (merge commits keep the diff clean). Slices do not wait for merges
+between them. Because stacked PRs target feature branches, `.github/workflows/ci.yml` now runs
+`pnpm check` on **every** pull request (and on pushes to `dev`).
+
+**Confirmed by user:** 2026-10-02 ("complete all phases and stack the PRs all at once").
+
+## D-009: Import intake and reconciliation semantics
+
+**Date:** 2026-10-02
+
+**Decision:** A file import flows through intake (API) and processing (queue consumer):
+
+**Intake** — `POST /api/imports` (session-authenticated) accepts `{ fileName, content }`, detects
+the source kind (`.vcf`/`.vcard` → vCard, `.csv` → CSV, content sniffing as the fallback), stores
+the raw payload in R2 at `imports/{userId}/{importId}`, creates the `sources` + `imports` rows
+(status `pending`), and enqueues `{ importId }`. `GET /api/imports` and `GET /api/imports/:id`
+report jobs and stats.
+
+**Processing** — the consumer parses the raw payload with the domain parsers and reconciles each
+observation:
+
+- Exact normalized identifier match (phone/email) → auto-link (`auto`, `exact_identifier`,
+  confidence 1). Two or more matching identities → a **proposed** link to the best candidate
+  (most matched identifiers, then oldest identity).
+- No identifier match but exactly one identity with the same normalized name → proposed link
+  (`name_similarity`, confidence 0.5).
+- Otherwise a new identity is created and seeded (`new_identity`, `auto`).
+- Auto-linked identities adopt new phone/email values (`value_added` history); a differing
+  display name opens one `conflicts` row per proposed value (canonical unchanged, deduplicated
+  against open conflicts); notes are adopted only when canonical notes are empty — notes never
+  auto-conflict in v1. Values from proposed links are adopted when the user confirms.
+- Identifiers are normalized at write time (`normalizePhoneForMatch` strips to digits, emails
+  lowercase) so blocking works for both the observation and canonical sides.
+
+**Failure policy** — processing errors mark the import `failed` with the error text and the
+message is acked: no automatic retry, so partial processing is never repeated (D1 has no
+interactive transactions; an idempotent replay is future work). An import counts once in
+`usage_operations` (`imported_contact`, quantity = contacts processed).
+
+**Rejected:** retrying failed imports now (duplicate partial writes without transactions);
+auto-linking ambiguous multi-identity matches (breaks the user-decides guarantee); notes
+conflicts in v1 (noisy, no canonical impact); whole-file parsing in the request (CPU belongs in
+the queue consumer per the architecture).
+
+**Confirmed by user:** 2026-10-02 (v1 scope D-004 and increment semantics D-006).
