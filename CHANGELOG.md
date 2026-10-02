@@ -22,6 +22,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ### Changed
 
+- Import limits are removed for the personal stage: no cap on imports, no `402` gate (usage
+  counters are still recorded; rate limiting and pricing are deferred to official shipping —
+  D-021).
 - Worker names in the repo configs now match the deployed Workers (`true-contact`,
   `true-contact-site`) so `wrangler` CLI commands target them correctly (D-017).
 

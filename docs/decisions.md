@@ -561,3 +561,21 @@ elevated ban risk. WA-JS runs against the session the user already has open, wit
 locally, in the user's own already-open browser session; everything else in D-012 stands.
 
 **Confirmed by user:** 2026-10-02 (chose the WA-JS upgrade over session-based libraries).
+
+## D-021: Personal stage — no import limits
+
+**Date:** 2026-10-02
+
+**Decision:** The free-tier import gate from D-013 is removed while TrueContact is a personal
+project: no account has an import cap. Usage operations are still recorded (the counters stay
+accurate for later), but the `FREE_IMPORT_LIMIT` variable and the `402` intake gate are gone,
+and the Imports page reports the running count without a ceiling. Rate limiting and pricing are
+deferred to the official-shipping backlog (revisit D-013 at that point).
+
+**Why:** the user's call — with access already gated behind admin approval (D-019), a second
+quota gate only gets in the way of the owner's own imports.
+
+**Supersedes:** D-013 (free-tier limit enforcement) for the personal stage.
+
+**Confirmed by user:** 2026-10-02 ("since we are a personal app now dont limit shit… add to
+backlog when officially shipping add rate limiting and pricing").

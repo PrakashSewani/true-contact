@@ -252,6 +252,7 @@ function debugCapture(rows: RowCapture[], bulk: BulkEntry[]): void {
     };
 
     console.log(`[TrueContact] capture ${JSON.stringify(payload)}`);
+    console.log('[TrueContact] all contacts', bulk);
   } catch (error) {
     console.log('[TrueContact] capture debug failed', error);
   }

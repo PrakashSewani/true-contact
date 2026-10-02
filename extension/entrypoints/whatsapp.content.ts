@@ -139,6 +139,7 @@ async function captureContacts(): Promise<CaptureResult> {
         .map((contact) => ({ id: contact.externalId, phones: contact.phones })),
     })}`,
   );
+  console.log('[TrueContact] pushed contacts', contacts);
 
   return { contacts, diagnostics };
 }
