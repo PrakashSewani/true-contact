@@ -148,42 +148,6 @@ svg {
   top: 1rem;
 }
 
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  padding: 0.65rem 1.15rem;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.button-primary {
-  background: var(--green);
-  color: var(--on-green);
-}
-
-.button-primary:hover {
-  background: var(--green-strong);
-  color: var(--on-green);
-}
-
-.button-secondary {
-  border-color: var(--line-strong);
-  background: transparent;
-  color: var(--ink);
-}
-
-.button-secondary:hover {
-  border-color: var(--green);
-  color: var(--green);
-}
-
 .kicker {
   margin-bottom: 0.9rem;
   font-family: var(--font-mono);

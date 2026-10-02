@@ -12,10 +12,19 @@
     "deploy": "astro build && wrangler deploy"
   },
   "dependencies": {
-    "@truecontact/shared": "workspace:*"
+    "@astrojs/react": "^7.0.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^9.4.0",
+    "@truecontact/shared": "workspace:*",
+    "@truecontact/ui": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "astro": "^7.3.5",
     "typescript": "^6.0.3",
     "wrangler": "^4.146.0"

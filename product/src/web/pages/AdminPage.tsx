@@ -1,3 +1,4 @@
+import { Button } from '@truecontact/ui';
 import { useEffect, useState } from 'react';
 import { useAccess } from '../access';
 import { type AdminUser, api, errorMessage } from '../client';
@@ -64,13 +65,9 @@ export function AdminPage() {
       <div className="section-header">
         <h1>Members</h1>
         <div className="toolbar">
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => setVersion((value) => value + 1)}
-          >
+          <Button variant="outlined" size="small" onClick={() => setVersion((value) => value + 1)}>
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -99,24 +96,23 @@ export function AdminPage() {
               {user.role !== 'admin' && (
                 <div className="toolbar">
                   {user.status !== 'approved' && (
-                    <button
-                      type="button"
-                      className="button-primary"
+                    <Button
+                      variant="contained"
                       disabled={busyId === user.id}
                       onClick={() => void decide(user, 'approve')}
                     >
                       Approve
-                    </button>
+                    </Button>
                   )}
                   {user.status !== 'rejected' && (
-                    <button
-                      type="button"
-                      className="button-secondary"
+                    <Button
+                      variant="outlined"
+                      size="small"
                       disabled={busyId === user.id}
                       onClick={() => void decide(user, 'reject')}
                     >
                       Reject
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}

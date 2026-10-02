@@ -3,6 +3,7 @@ packages:
   - extension
   - site
   - shared
+  - ui
 allowBuilds:
   esbuild: true
   workerd: true
