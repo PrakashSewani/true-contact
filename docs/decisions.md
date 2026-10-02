@@ -339,3 +339,28 @@ bearer token — WhatsApp credentials never exist anywhere in the flow:
 - Changing limits is configuration, not code; billing stays out of v1 (D-004).
 
 **Confirmed by user:** 2026-10-02 (v1 scope D-004).
+
+## D-014: Promo site scope, content, and deploy
+
+**Date:** 2026-10-02
+
+**Decision:** The promo site is a single static Astro landing page whose section order is
+recorded in `docs/product.md` ("Promo site"), deployed as the assets-only Worker
+`truecontact-site` with the manual `pnpm deploy` procedure in the `ship-release` skill. It sends
+visitors to the product through one primary CTA ("Open TrueContact") that reads the product
+origin from a single site-side config constant (`site/src/config.ts`), overridable at build time
+via `PUBLIC_APP_URL` and filled at deploy (phase 4); custom domain and canonical URL are
+deploy-time decisions. The page requires no client-side JavaScript, makes no product API calls,
+and shares only brand constants from `shared/` (D-001 dependency rule).
+
+**Rejected**
+
+- Waitlist/form backend — v1 has no email provider (D-004) and it adds product surface for no
+  launch need.
+- CMS — the copy is fixed and source-controlled; there is nothing an editor would manage.
+- Multi-page IA (privacy/FAQ pages) in v1 — one page carries the story; split later if the copy
+  outgrows it.
+- Client-side interactivity — nothing on the page requires it; static stays fast and robust.
+
+**Confirmed by user:** pending — phase-3 stack review (this entry lands with the site build and
+the `docs/product.md` section it records).

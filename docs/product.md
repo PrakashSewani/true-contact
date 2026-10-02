@@ -68,3 +68,34 @@ The one workflow that must feel right for the first release:
 "Done" for the first release means: both import paths work end to end, reconciliation produces
 reviewable output (never silent canonical changes), merge/split/history are usable, export works,
 the free-tier usage limit is enforced, and the repository's check command and CI are green.
+
+## Promo site
+
+The promo site is the product's front door: one page that explains what TrueContact is, why
+scattered contact data is a problem, how the core loop works, and what makes it trustworthy —
+then sends visitors to the product. It deploys independently of the product: no product runtime
+code, no product API calls, only brand constants shared through `shared/`.
+
+Section order (single page):
+
+1. **Hero** — the promise, the primary call to action, and a secondary "how it works" anchor.
+2. **The problem** — sources drift and disagree: exists here, missing there; different names;
+   changed numbers; silent overwrites elsewhere.
+3. **How it works** — the core loop in four steps: import → reconcile → review → own it
+   (history + export).
+4. **Trust and privacy** — no third-party credentials, non-destructive automation, every
+   canonical change is a user decision, data is never sold, export means no lock-in.
+5. **WhatsApp connector** — capture from WhatsApp Web through the extension and a pairing code;
+   no WhatsApp password, OTP, or session secret is ever requested.
+6. **Pricing** — free to start: v1 has no billing; the free tier caps lifetime imported contacts
+   (D-013).
+7. **FAQ and footer** — short answers (credentials, where data lives, export, sources) and the
+   closing call to action.
+
+The primary CTA ("Open TrueContact") points at the product origin through a single site-side
+configuration constant (`site/src/config.ts`, overridable at build time with `PUBLIC_APP_URL`),
+filled at deploy time (D-014). No forms and no waitlist backend in v1.
+
+Deploy-ready means: `pnpm check` green; a single static page that needs no client-side
+JavaScript; accessible semantics and focus states; responsive from ~360px; deployed as-is by the
+procedure in the `ship-release` skill.

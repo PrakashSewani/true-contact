@@ -27,7 +27,7 @@ adapter internals — the extension is one source adapter, not a dependency of t
 | Import pipeline | `product/src/imports` + `IMPORTS_QUEUE` consumer | Intake, chunked reconciliation against the graph, limit enforcement |
 | Raw imports | `IMPORTS_BUCKET` (R2) | Temporary raw payloads; minimized retention, never the canonical store |
 | WhatsApp connector | `extension/` | Captures legitimately available WhatsApp Web contact data and pushes normalized batches |
-| Promo site | `site/` | Static marketing page; no product runtime |
+| Promo site | `site/` | Static Astro landing page; assets-only Worker `truecontact-site`; deploys independently (`pnpm deploy`) |
 
 Bindings in `product/wrangler.jsonc`: `DB` (D1), `IMPORTS_BUCKET` (R2), `IMPORTS_QUEUE`
 (Queues producer + consumer), `ASSETS` (SPA, `run_worker_first: ["/api/*"]`).
