@@ -15,8 +15,6 @@ importRoutes.post('/api/imports', async (c) => {
     return c.json({ error: 'unauthorized' }, 401);
   }
 
-  const db = drizzle(c.env.DB, { schema });
-
   let body: unknown;
   try {
     body = await c.req.json();
