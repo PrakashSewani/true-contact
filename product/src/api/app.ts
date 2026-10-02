@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { actionRoutes } from './actions';
 import { createAuth } from './auth';
 import { contactRoutes } from './contacts';
 import { importRoutes } from './imports';
@@ -25,6 +26,7 @@ export function createApp() {
 
   app.route('/', importRoutes);
   app.route('/', contactRoutes);
+  app.route('/', actionRoutes);
 
   return app;
 }

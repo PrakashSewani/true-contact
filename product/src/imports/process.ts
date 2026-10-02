@@ -1,6 +1,6 @@
 import type { NormalizedContact } from '@truecontact/shared';
 import { and, eq, inArray, or, type SQL } from 'drizzle-orm';
-import { type DrizzleD1Database, drizzle } from 'drizzle-orm/d1';
+import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../db/schema';
 import {
   normalizeEmailForMatch,
@@ -9,8 +9,8 @@ import {
 } from '../domain/matching';
 import { parseCsv } from '../domain/parse-csv';
 import { parseVCard } from '../domain/parse-vcard';
+import { adoptValues, createIdentityFromObservation, type Db, recordEvent } from './graph';
 
-type Db = DrizzleD1Database<typeof schema>;
 type ImportRow = typeof schema.imports.$inferSelect;
 
 interface ImportContext {
@@ -214,10 +214,28 @@ async function reconcileContact(
     );
 
     if (status === 'auto') {
-      const conflicts = await adoptValues(context, best.identityId, contact, observationId);
-      await recordEvent(context, best.identityId, 'observed', observationId, {
+      const conflicts = await adoptValues(context.db, {
+        userId: context.userId,
+        identityId: best.identityId,
+        contact,
+        observationId,
+        actor: 'system',
         sourceId: context.sourceId,
+        importId: context.importId,
       });
+      await recordEvent(
+        context.db,
+        {
+          userId: context.userId,
+          actor: 'system',
+          sourceId: context.sourceId,
+          importId: context.importId,
+        },
+        best.identityId,
+        'observed',
+        observationId,
+        { sourceId: context.sourceId },
+      );
       return { action: 'linked', conflicts };
     }
 
@@ -232,7 +250,18 @@ async function reconcileContact(
     return { action: 'proposed', conflicts: 0 };
   }
 
-  await createIdentity(context, contact, observationId);
+  const identityId = await createIdentityFromObservation(context.db, {
+    userId: context.userId,
+    contact,
+    observationId,
+    actor: 'system',
+    sourceId: context.sourceId,
+    importId: context.importId,
+  });
+
+  await insertLink(context, identityId, observationId, 'new_identity', 'auto', 1);
+  addToNameIndex(context, identityId, contact.displayName, Date.now());
+
   return { action: 'created', conflicts: 0 };
 }
 
@@ -299,205 +328,6 @@ async function findIdentifierCandidates(
     });
 }
 
-async function createIdentity(
-  context: ImportContext,
-  contact: NormalizedContact,
-  observationId: string,
-): Promise<string> {
-  const { db, userId } = context;
-  const now = new Date();
-  const identityId = crypto.randomUUID();
-
-  await db.insert(schema.identities).values({
-    id: identityId,
-    userId,
-    displayName: contact.displayName,
-    notes: contact.notes,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  for (const phone of contact.phones) {
-    const normalizedValue = normalizePhoneForMatch(phone.value);
-    if (normalizedValue === '') {
-      continue;
-    }
-
-    await db.insert(schema.identityValues).values({
-      id: crypto.randomUUID(),
-      userId,
-      identityId,
-      kind: 'phone',
-      value: phone.value,
-      normalizedValue,
-      label: phone.label,
-      firstObservationId: observationId,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
-
-  for (const email of contact.emails) {
-    const normalizedValue = normalizeEmailForMatch(email.value);
-    if (normalizedValue === '') {
-      continue;
-    }
-
-    await db.insert(schema.identityValues).values({
-      id: crypto.randomUUID(),
-      userId,
-      identityId,
-      kind: 'email',
-      value: email.value,
-      normalizedValue,
-      label: email.label,
-      firstObservationId: observationId,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
-
-  await insertLink(context, identityId, observationId, 'new_identity', 'auto', 1);
-  await recordEvent(context, identityId, 'created', observationId, {
-    displayName: contact.displayName,
-  });
-  addToNameIndex(context, identityId, contact.displayName, now.getTime());
-
-  return identityId;
-}
-
-async function adoptValues(
-  context: ImportContext,
-  identityId: string,
-  contact: NormalizedContact,
-  observationId: string,
-): Promise<number> {
-  const { db, userId } = context;
-  const now = new Date();
-  let conflicts = 0;
-
-  const existing = await db
-    .select({
-      kind: schema.identityValues.kind,
-      normalizedValue: schema.identityValues.normalizedValue,
-    })
-    .from(schema.identityValues)
-    .where(
-      and(
-        eq(schema.identityValues.userId, userId),
-        eq(schema.identityValues.identityId, identityId),
-      ),
-    );
-
-  const existingKeys = new Set(existing.map((value) => `${value.kind}:${value.normalizedValue}`));
-
-  for (const phone of contact.phones) {
-    const normalizedValue = normalizePhoneForMatch(phone.value);
-    const key = `phone:${normalizedValue}`;
-
-    if (normalizedValue === '' || existingKeys.has(key)) {
-      continue;
-    }
-    existingKeys.add(key);
-
-    await db.insert(schema.identityValues).values({
-      id: crypto.randomUUID(),
-      userId,
-      identityId,
-      kind: 'phone',
-      value: phone.value,
-      normalizedValue,
-      label: phone.label,
-      firstObservationId: observationId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await recordEvent(context, identityId, 'value_added', observationId, {
-      kind: 'phone',
-      value: phone.value,
-    });
-  }
-
-  for (const email of contact.emails) {
-    const normalizedValue = normalizeEmailForMatch(email.value);
-    const key = `email:${normalizedValue}`;
-
-    if (normalizedValue === '' || existingKeys.has(key)) {
-      continue;
-    }
-    existingKeys.add(key);
-
-    await db.insert(schema.identityValues).values({
-      id: crypto.randomUUID(),
-      userId,
-      identityId,
-      kind: 'email',
-      value: email.value,
-      normalizedValue,
-      label: email.label,
-      firstObservationId: observationId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await recordEvent(context, identityId, 'value_added', observationId, {
-      kind: 'email',
-      value: email.value,
-    });
-  }
-
-  const [identity] = await db
-    .select()
-    .from(schema.identities)
-    .where(eq(schema.identities.id, identityId));
-
-  if (!identity) {
-    return conflicts;
-  }
-
-  if (normalizeNameForMatch(identity.displayName) !== normalizeNameForMatch(contact.displayName)) {
-    const [existingConflict] = await db
-      .select({ id: schema.conflicts.id })
-      .from(schema.conflicts)
-      .where(
-        and(
-          eq(schema.conflicts.userId, userId),
-          eq(schema.conflicts.identityId, identityId),
-          eq(schema.conflicts.status, 'open'),
-          eq(schema.conflicts.proposedValue, contact.displayName),
-        ),
-      );
-
-    if (!existingConflict) {
-      await db.insert(schema.conflicts).values({
-        id: crypto.randomUUID(),
-        userId,
-        identityId,
-        field: 'display_name',
-        existingValue: identity.displayName,
-        proposedValue: contact.displayName,
-        proposedObservationId: observationId,
-        status: 'open',
-        createdAt: now,
-      });
-      await recordEvent(context, identityId, 'conflict_opened', observationId, {
-        field: 'display_name',
-        proposedValue: contact.displayName,
-      });
-      conflicts += 1;
-    }
-  }
-
-  if (!identity.notes && contact.notes) {
-    await db
-      .update(schema.identities)
-      .set({ notes: contact.notes, updatedAt: now })
-      .where(eq(schema.identities.id, identityId));
-    await recordEvent(context, identityId, 'value_added', observationId, { kind: 'notes' });
-  }
-
-  return conflicts;
-}
-
 async function insertLink(
   context: ImportContext,
   identityId: string,
@@ -518,27 +348,6 @@ async function insertLink(
     status,
     createdAt: now,
     updatedAt: now,
-  });
-}
-
-async function recordEvent(
-  context: ImportContext,
-  identityId: string,
-  type: 'created' | 'observed' | 'value_added' | 'conflict_opened',
-  observationId: string | null,
-  payload: Record<string, unknown>,
-): Promise<void> {
-  await context.db.insert(schema.historyEvents).values({
-    id: crypto.randomUUID(),
-    userId: context.userId,
-    identityId,
-    type,
-    actor: 'system',
-    sourceId: context.sourceId,
-    importId: context.importId,
-    observationId,
-    payload,
-    createdAt: new Date(),
   });
 }
 

@@ -258,3 +258,29 @@ conflicts in v1 (noisy, no canonical impact); whole-file parsing in the request 
 the queue consumer per the architecture).
 
 **Confirmed by user:** 2026-10-02 (v1 scope D-004 and increment semantics D-006).
+
+## D-010: Review action semantics
+
+**Date:** 2026-10-02
+
+**Decision:** The review loop's write actions (session-authenticated, tenant-scoped; every change
+appends a user-actor history event):
+
+- **Confirm a proposed link** — the link becomes `confirmed`; the observation's values are
+  adopted onto the identity (same rules as D-009); recorded as `link_confirmed`.
+- **Reject a proposed link** — the observation becomes its own contact: the link row is
+  repointed to a newly created identity (`method: manual`, `confirmed`), and the original
+  identity records `link_rejected`. Repointing preserves the one-link-per-observation invariant.
+- **Resolve a conflict** — `keep_existing` (canonical unchanged), `use_proposed`, or `custom`
+  with a value. Adopting a value updates the canonical field and writes `value_changed` +
+  `conflict_resolved`. v1 resolves `display_name` conflicts; other fields return 400 until the
+  UI needs them.
+- **Merge identities** — values move (duplicates dropped), links move (`proposed` →
+  `confirmed`), open conflicts move, the source identity is tombstoned (`merged_into_id`), and
+  both sides record `merged`.
+- **Split an identity** — selected observations are repointed to a new identity seeded with
+  their values and confirmed links; `split` on the source, `created` on the new identity.
+- **Edit canonical data** — displayName/notes changes and value add/remove write
+  `value_changed` / `value_added` / `value_removed` with actor `user`.
+
+**Confirmed by user:** 2026-10-02 (review-loop requirements in `docs/product.md`; D-004/D-006).

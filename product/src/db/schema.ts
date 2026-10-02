@@ -299,6 +299,8 @@ export const historyEvents = sqliteTable(
         'conflict_resolved',
         'merged',
         'split',
+        'link_confirmed',
+        'link_rejected',
       ],
     }).notNull(),
     actor: text('actor', { enum: ['system', 'user'] }).notNull(),
