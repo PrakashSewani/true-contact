@@ -5,6 +5,7 @@ import { Hono } from 'hono';
 import * as schema from '../db/schema';
 import { queueImport } from '../imports/intake';
 import { checkImportLimit } from '../imports/limits';
+import { membershipFor } from './access';
 import { hashToken } from './pairing';
 
 export const extensionRoutes = new Hono<{ Bindings: Env }>();
@@ -32,6 +33,11 @@ extensionRoutes.post('/api/imports/extension', async (c) => {
 
   if (!record) {
     return c.json({ error: 'invalid or expired token' }, 401);
+  }
+
+  const membership = await membershipFor(c.env, record.userId);
+  if (membership.status !== 'approved') {
+    return c.json({ error: 'pending approval' }, 403);
   }
 
   const limitCheck = await checkImportLimit(c.env, db, record.userId);

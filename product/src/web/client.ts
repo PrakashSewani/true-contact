@@ -95,6 +95,26 @@ export interface ImportJob {
   finishedAt: string | null;
 }
 
+export interface Membership {
+  role: 'admin' | 'member';
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface Me {
+  user: { id: string; email: string; name: string };
+  membership: Membership;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  role: 'admin' | 'member';
+  status: 'pending' | 'approved' | 'rejected';
+  decidedAt: string | null;
+}
+
 export function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : 'Something went wrong';
 }
@@ -120,6 +140,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 export const api = {
+  me: () => request<Me>('/api/me'),
   contacts: () => request<{ contacts: ContactSummary[] }>('/api/contacts'),
   contact: (id: string) => request<{ contact: ContactDetail }>(`/api/contacts/${id}`),
   review: () =>
@@ -153,4 +174,9 @@ export const api = {
     request(`/api/contacts/${id}/values`, { method: 'POST', body: value }),
   deleteValue: (id: string, valueId: string) =>
     request(`/api/contacts/${id}/values/${valueId}`, { method: 'DELETE' }),
+  adminUsers: () => request<{ users: AdminUser[] }>('/api/admin/users'),
+  approveUser: (id: string) =>
+    request(`/api/admin/users/${id}/approve`, { method: 'POST', body: {} }),
+  rejectUser: (id: string) =>
+    request(`/api/admin/users/${id}/reject`, { method: 'POST', body: {} }),
 };

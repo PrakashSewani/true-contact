@@ -15,7 +15,24 @@ export interface RegisteredUser {
   userId: string;
 }
 
-export async function registerUser(): Promise<RegisteredUser> {
+export interface RegisterOptions {
+  approved?: boolean;
+}
+
+export async function setMembership(
+  userId: string,
+  role: 'admin' | 'member',
+  status: 'approved' | 'pending' | 'rejected',
+): Promise<void> {
+  const db = drizzle(env.DB, { schema });
+
+  await db
+    .insert(schema.memberships)
+    .values({ userId, role, status, createdAt: new Date() })
+    .onConflictDoUpdate({ target: schema.memberships.userId, set: { role, status } });
+}
+
+export async function registerUser(options: RegisterOptions = {}): Promise<RegisteredUser> {
   const email = `test-${crypto.randomUUID()}@example.com`;
   const response = await worker.fetch(
     new Request('http://truecontact.test/api/auth/sign-up/email', {
@@ -34,6 +51,10 @@ export async function registerUser(): Promise<RegisteredUser> {
 
   if (!userId) {
     throw new Error('sign-up response did not include a user id');
+  }
+
+  if (options.approved !== false) {
+    await setMembership(userId, 'member', 'approved');
   }
 
   const cookie = response.headers

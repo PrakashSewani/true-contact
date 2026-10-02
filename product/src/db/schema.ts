@@ -364,3 +364,18 @@ export const extensionTokens = sqliteTable(
   },
   (table) => [index('extension_tokens_user_id_idx').on(table.userId)],
 );
+
+export const memberships = sqliteTable('memberships', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  role: text('role', { enum: ['admin', 'member'] })
+    .notNull()
+    .default('member'),
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] })
+    .notNull()
+    .default('pending'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  decidedAt: integer('decided_at', { mode: 'timestamp' }),
+  decidedBy: text('decided_by').references(() => user.id, { onDelete: 'set null' }),
+});

@@ -18,6 +18,15 @@ Anyone whose contact information lives in more than one place — phone address 
 Google Contacts, iCloud, old exports — and who wants one reliable, reviewable answer to "what is
 the right information for this person?"
 
+## Access (personal-only stage)
+
+TrueContact is a personal project until it can run as a free public service (D-019).
+Registration is open, but a new account gets no product access until the admin approves it —
+product APIs return `403` while pending, and the app shows a waiting screen (no email
+notifications in v1; there is no email provider). The admin — the project owner — reviews new
+accounts from the in-app **Members** page and approves or rejects them. When funding exists,
+opening TrueContact to the public is a configuration change, not a rebuild.
+
 ## The problem it solves
 
 Contact management assumes one system is authoritative. In reality, every source drifts:

@@ -498,3 +498,39 @@ slower).
 
 **Confirmed by user:** 2026-10-02 (stay on Free plan; processing messaging should be
 progress-based rather than a fixed window).
+
+## D-019: Personal-only access with admin approval
+
+**Date:** 2026-10-02
+
+**Decision:** Until there is funding to run TrueContact as a free public service, it operates
+as a personal project with gated access:
+
+- Registration stays open, but a new account has **no product access** until the admin approves
+  it: every authenticated product route (contacts, review actions, imports, export, pairing)
+  returns `403 pending approval` for unapproved accounts; the bearer-token extension import
+  checks membership too.
+- Membership lives in a new `memberships` table (`user_id` PK, `role` `admin | member`,
+  `status` `pending | approved | rejected`, `decided_at/by`). A missing row means `pending` —
+  no signup hook needed.
+- Migration `0004` creates the table and promotes **every account existing at migration time**
+  to admin/approved (in production that is exactly the current user) — self-contained and
+  disaster-recoverable. Accounts created after it stay pending until approved.
+- Admin API: `GET /api/admin/users`, `POST /api/admin/users/:id/approve`, `POST
+  /api/admin/users/:id/reject` (admins cannot be demoted through these routes). The SPA gains a
+  waiting screen for pending/rejected accounts, a Members page for admins, and `GET /api/me`
+  reports `{ membership }` so it can route itself.
+- No email notifications (no email provider in v1 — D-004): pending users see the waiting
+  screen; the admin sees the pending list in the app.
+- Opening to the public later is a configuration change (approve-by-default), not a rebuild.
+
+**Why:** the owner wants a personal/friends-only stage while the core loop proves itself and
+funding is secured; public signups would otherwise consume the free-tier D1/R2/Queues quota
+and expose an unfinished product.
+
+**Rejected:** invite codes (more moving parts than admin approval at this scale); closing
+registration entirely (the owner would have to create every account by hand); an env-var
+allowlist (no audit trail, awkward to change).
+
+**Confirmed by user:** 2026-10-02 ("personal only project… admin approves new joinings… free
+to the world once funded").
