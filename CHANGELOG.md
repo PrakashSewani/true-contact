@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 - Data deletion: "Delete all data" on the Imports page clears contacts, imports, and history for
   the signed-in account (usage counters stay, since they track the free-tier limit).
+
+## [1.1.0] - 2026-10-02
+
+### Added
+
 - Chrome Web Store prep: extension icon set, a popup that locks the pairing URL once connected and
   offers Disconnect, a notice (and disabled scan) when opened outside WhatsApp Web, a site privacy
   policy page, extension install links on the site and the app's Imports page, and the store
