@@ -39,11 +39,17 @@ export interface CaptureCommand {
   type: 'capture';
 }
 
+export interface BulkEntry {
+  id: string;
+  name: string | null;
+}
+
 export interface CaptureDiagnostics {
   url: string;
   strategy: string | null;
   rowCount: number;
   jidRows: number;
+  bulkFound: number;
   matchedCount: number;
   reactFound: boolean;
   firstTitle: string | null;

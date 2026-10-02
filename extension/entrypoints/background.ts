@@ -136,7 +136,7 @@ function emptyReason(diagnostics?: CaptureDiagnostics): string {
 
   const sample = diagnostics.sampleJid ? `, e.g. ${diagnostics.sampleJid}` : '';
 
-  return `Found ${diagnostics.rowCount} rows but no importable contacts — chat IDs read: ${diagnostics.jidRows}${sample}, page state readable: ${diagnostics.reactFound ? 'yes' : 'no'}, first title: ${diagnostics.firstTitle ?? 'none'}.`;
+  return `Found ${diagnostics.rowCount} rows but no importable contacts — row IDs: ${diagnostics.jidRows}, list IDs: ${diagnostics.bulkFound}${sample}, page state readable: ${diagnostics.reactFound ? 'yes' : 'no'}, first title: ${diagnostics.firstTitle ?? 'none'}.`;
 }
 
 async function errorText(response: Response): Promise<string> {

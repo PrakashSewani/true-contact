@@ -1,4 +1,4 @@
-import type { CaptureDiagnostics, CaptureResult } from '../lib/messages';
+import type { BulkEntry, CaptureDiagnostics, CaptureResult } from '../lib/messages';
 
 export default defineContentScript({
   matches: ['https://web.whatsapp.com/*'],
@@ -17,42 +17,61 @@ export default defineContentScript({
 
 const ROW_SELECTOR = '[role="listitem"]';
 
+interface PageCapture {
+  rows: (string | null)[];
+  bulk: BulkEntry[];
+}
+
 async function captureContacts(): Promise<CaptureResult> {
-  const contacts: CaptureResult['contacts'] = [];
-  const seen = new Set<string>();
-
   const rows = Array.from(document.querySelectorAll(ROW_SELECTOR));
-  const jids = await requestJids();
+  const capture = await requestCapture();
 
+  const collected = new Map<string, { name: string; phone: string | null }>();
   let firstTitle: string | null = null;
   let jidRows = 0;
   let sampleJid: string | null = null;
 
   for (const [index, row] of rows.entries()) {
-    const name = chatName(row);
-    const jid = jids?.[index] ?? null;
+    const jid = capture?.rows[index] ?? null;
+    const title = chatName(row);
 
     if (index === 0) {
-      firstTitle = name;
+      firstTitle = title;
     }
-
-    if (jid) {
-      jidRows += 1;
-      sampleJid ??= jid;
-    }
-
-    if (!jid?.endsWith('@c.us') || name === '' || seen.has(jid)) {
+    if (!jid) {
       continue;
     }
-    seen.add(jid);
 
-    const digits = jid.replace('@c.us', '');
-    const phone = /^\d{7,15}$/.test(digits) ? `+${digits}` : null;
+    jidRows += 1;
+    sampleJid ??= jid;
 
+    const name = title !== '' ? title : (phoneOf(jid) ?? '');
+    if (name !== '' && !collected.has(jid)) {
+      collected.set(jid, { name, phone: phoneOf(jid) });
+    }
+  }
+
+  let bulkFound = 0;
+
+  for (const entry of capture?.bulk ?? []) {
+    bulkFound += 1;
+    if (collected.has(entry.id)) {
+      continue;
+    }
+
+    const name = entry.name ?? phoneOf(entry.id);
+    if (name) {
+      collected.set(entry.id, { name, phone: phoneOf(entry.id) });
+    }
+  }
+
+  const contacts: CaptureResult['contacts'] = [];
+
+  for (const [jid, info] of collected) {
     contacts.push({
       externalId: jid,
-      displayName: name,
-      phones: phone ? [{ value: phone }] : [],
+      displayName: info.name,
+      phones: info.phone ? [{ value: info.phone }] : [],
       emails: [],
       observedAt: new Date().toISOString(),
     });
@@ -63,8 +82,9 @@ async function captureContacts(): Promise<CaptureResult> {
     strategy: rows.length > 0 ? ROW_SELECTOR : null,
     rowCount: rows.length,
     jidRows,
+    bulkFound,
     matchedCount: contacts.length,
-    reactFound: jids !== null,
+    reactFound: capture !== null,
     firstTitle,
     sampleJid,
   };
@@ -72,14 +92,24 @@ async function captureContacts(): Promise<CaptureResult> {
   return { contacts, diagnostics };
 }
 
-async function requestJids(): Promise<(string | null)[] | null> {
+function phoneOf(jid: string): string | null {
+  if (!jid.endsWith('@c.us')) {
+    return null;
+  }
+
+  const digits = jid.replace('@c.us', '');
+
+  return /^\d{7,15}$/.test(digits) ? `+${digits}` : null;
+}
+
+async function requestCapture(): Promise<PageCapture | null> {
   return new Promise((resolve) => {
     const nonce = crypto.randomUUID();
 
     const timeout = window.setTimeout(() => {
       cleanup();
       resolve(null);
-    }, 1500);
+    }, 2000);
 
     const onMessage = (event: MessageEvent) => {
       if (event.source !== window) {
@@ -87,19 +117,34 @@ async function requestJids(): Promise<(string | null)[] | null> {
       }
 
       const data = event.data as
-        | { source?: string; type?: string; nonce?: string; jids?: unknown }
+        | { source?: string; type?: string; nonce?: string; rows?: unknown; bulk?: unknown }
         | undefined;
 
       if (
         data?.source !== 'truecontact-connector-page' ||
         data.nonce !== nonce ||
-        !Array.isArray(data.jids)
+        !Array.isArray(data.rows) ||
+        !Array.isArray(data.bulk)
       ) {
         return;
       }
 
       cleanup();
-      resolve(data.jids.map((value) => (typeof value === 'string' ? value : null)));
+      resolve({
+        rows: data.rows.map((value) => (typeof value === 'string' ? value : null)),
+        bulk: data.bulk
+          .map((value) => {
+            if (!value || typeof value !== 'object') {
+              return null;
+            }
+            const record = value as { id?: unknown; name?: unknown };
+            if (typeof record.id !== 'string') {
+              return null;
+            }
+            return { id: record.id, name: typeof record.name === 'string' ? record.name : null };
+          })
+          .filter((value): value is BulkEntry => value !== null),
+      });
     };
 
     const cleanup = () => {
