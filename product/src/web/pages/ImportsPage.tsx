@@ -240,7 +240,7 @@ export function ImportsPage() {
         <h2>Danger zone</h2>
         <p className="muted">
           Delete all contacts, imports, and history from your account. This cannot be undone. Your
-          import-usage counter stays, since it tracks the free-tier limit.
+          usage counter stays — it keeps a running total.
         </p>
         <button
           type="button"
