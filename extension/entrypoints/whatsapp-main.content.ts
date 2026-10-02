@@ -192,27 +192,6 @@ async function captureWppEntries(): Promise<BulkEntry[]> {
   return Array.from(entries.values());
 }
 
-function mergeBulkEntries(primary: BulkEntry[], secondary: BulkEntry[]): BulkEntry[] {
-  const merged = new Map<string, BulkEntry>();
-
-  for (const entry of [...primary, ...secondary]) {
-    const existing = merged.get(entry.id);
-
-    if (!existing) {
-      merged.set(entry.id, entry);
-      continue;
-    }
-
-    merged.set(entry.id, {
-      id: entry.id,
-      name: existing.name ?? entry.name,
-      phone: existing.phone ?? entry.phone,
-    });
-  }
-
-  return Array.from(merged.values());
-}
-
 function findPhone(value: unknown, depth: number): string | null {
   if (!value || typeof value !== 'object' || Array.isArray(value) || depth > 3) {
     return null;
