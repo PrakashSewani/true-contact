@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release label
+        id: label
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          COUNT=$(echo "$LABELS" | jq '[.[] | select(startswith("release:"))] | length')
+          BUMP=$(echo "$LABELS" | jq -r '[.[] | select(. == "release:patch" or . == "release:minor" or . == "release:major")] | .[0] // empty' | sed 's/^release://')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "bump=" >> "$GITHUB_OUTPUT"
+          elif [ "$COUNT" -eq 1 ] && [ -n "$BUMP" ]; then
+            echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::A release PR must carry exactly one of release:patch, release:minor, release:major."
+            exit 1
+          fi
+
+      - name: Notice
+        if: steps.label.outputs.bump == ''
+        run: echo "No release label on this merge — nothing is published."
+
+      - name: Checkout main
+        if: steps.label.outputs.bump != ''
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        if: steps.label.outputs.bump != ''
+        uses: pnpm/action-setup@v6.1.0
+
+      - name: Setup Node
+        if: steps.label.outputs.bump != ''
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        if: steps.label.outputs.bump != ''
+        run: pnpm install --frozen-lockfile
+
+      - name: Bump version and changelog
+        if: steps.label.outputs.bump != ''
+        id: bump
+        run: |
+          VERSION=$(node scripts/release.mjs "${{ steps.label.outputs.bump }}")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check
+        if: steps.label.outputs.bump != ''
+        run: pnpm check
+
+      - name: Configure release deploy key
+        if: steps.label.outputs.bump != ''
+        env:
+          DEPLOY_KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::RELEASE_DEPLOY_KEY secret is not set; cannot push the release commit."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git remote set-url origin "git@github.com:${GITHUB_REPOSITORY}.git"
+
+      - name: Commit, tag, and push
+        if: steps.label.outputs.bump != ''
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): v$VERSION"
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "HEAD:main" "refs/tags/v$VERSION"
+
+      - name: Publish GitHub release
+        if: steps.label.outputs.bump != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          awk -v ver="$VERSION" '
+            index($0, "## [" ver "]") == 1 { found=1; next }
+            found && index($0, "## [") == 1 { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          gh release create "v$VERSION" --title "v$VERSION" --notes-file release-notes.md

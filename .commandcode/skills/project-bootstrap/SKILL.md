@@ -3,7 +3,7 @@ name: project-bootstrap
 description: Choose the tech stack for this repository and scaffold it. Use when the repo is fresh (docs/product.md is unfilled, docs/decisions.md D-001 is pending) or when the user asks to set up, scaffold, bootstrap, initialize, or "start" the project.
 license: MIT
 metadata:
-  template: template-app-plus-site
+  template: true-contact
   version: "1"
 ---
 
@@ -14,7 +14,7 @@ stack, recorded in the docs, scaffolded and verified. Do not write product code 
 
 ## Step 0 — Rename the template (once)
 
-If the repo still says `template-app-plus-site` / "Product + Promo Site" anywhere (README,
+If the repo still says `true-contact` / "TrueContact" anywhere (README,
 AGENTS.md, docs, skills), fix that before anything else. The slug is the repository name; the
 title is the human name for it.
 

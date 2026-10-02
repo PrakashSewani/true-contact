@@ -1,0 +1,19 @@
+{
+  "name": "@truecontact/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared contracts between the TrueContact product and its source adapters: normalized contact records, the pairing protocol, and brand constants.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
