@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-02
+
 ### Changed
 
 - Promo site: closed-beta positioning — the CTAs now apply for access (accounts are approved by
