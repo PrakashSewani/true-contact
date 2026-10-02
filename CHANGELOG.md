@@ -37,6 +37,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - Free-tier usage limits: `FREE_IMPORT_LIMIT` variable (default 1000), an intake gate returning
   `402` once lifetime imported-contact usage reaches the limit, and usage reporting on
   `GET /api/imports`.
+- Promo site: a deploy-ready single static landing page (Astro, no client-side JavaScript) with
+  the hero identity-card proof, problem compare, the four-step loop, trust panels, WhatsApp
+  connector, pricing, FAQ, and footer; light/dark schemes; favicon and robots.txt.
+- Production hostnames: Worker Custom Domains `truecontact.prakashsewani.com` (promo site) and
+  `app.truecontact.prakashsewani.com` (product), with the extension host permission and the
+  deploy checklist wired for them (D-015).
 
 ### Changed
 
