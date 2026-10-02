@@ -30,9 +30,12 @@ export default defineContentScript({
       }
 
       try {
-        const rows = captureRows();
         const wppEntries = await captureWppEntries();
-        const bulk = mergeBulkEntries(wppEntries, captureBulk());
+        const usingWpp = wppEntries.length > 0;
+        // When WA-JS answers, push exactly the address book — the DOM/chat-list capture is
+        // only a fallback for when the store is unavailable.
+        const rows = usingWpp ? [] : captureRows();
+        const bulk = usingWpp ? wppEntries : captureBulk();
         debugCapture(rows, bulk);
 
         window.postMessage(
@@ -142,7 +145,11 @@ async function captureWppEntries(): Promise<BulkEntry[]> {
 
   let contacts: WppContactModel[] = [];
   try {
-    contacts = await list.call(client.contact, { onlyMyContacts: false });
+    contacts = await list.call(client.contact, { onlyMyContacts: true });
+
+    if (contacts.length === 0) {
+      contacts = await list.call(client.contact, { onlyMyContacts: false });
+    }
   } catch {
     return [];
   }
