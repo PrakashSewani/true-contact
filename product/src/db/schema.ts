@@ -91,7 +91,9 @@ export interface ImportStats {
   contacts?: number;
   created?: number;
   linked?: number;
+  proposed?: number;
   conflicts?: number;
+  skipped?: number;
 }
 
 export const imports = sqliteTable(

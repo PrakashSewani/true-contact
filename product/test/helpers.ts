@@ -7,6 +7,7 @@ const ORIGIN = 'http://localhost:5173';
 export interface RegisteredUser {
   cookie: string;
   email: string;
+  userId: string;
 }
 
 export async function registerUser(): Promise<RegisteredUser> {
@@ -23,12 +24,19 @@ export async function registerUser(): Promise<RegisteredUser> {
     throw new Error(`sign-up failed with status ${response.status}`);
   }
 
+  const body = (await response.json()) as { user?: { id?: string } };
+  const userId = body.user?.id;
+
+  if (!userId) {
+    throw new Error('sign-up response did not include a user id');
+  }
+
   const cookie = response.headers
     .getSetCookie()
     .map((value) => value.split(';')[0] ?? '')
     .join('; ');
 
-  return { cookie, email };
+  return { cookie, email, userId };
 }
 
 export function apiRequest(
