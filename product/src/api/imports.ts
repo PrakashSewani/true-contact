@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import * as schema from '../db/schema';
 import { detectImportKind, MAX_IMPORT_LENGTH } from '../domain/imports';
 import { queueImport } from '../imports/intake';
+import { checkImportLimit, freeImportLimit, importedContactUsage } from '../imports/limits';
 import { getSessionUser } from './session';
 
 export const importRoutes = new Hono<{ Bindings: Env }>();
@@ -12,6 +13,15 @@ importRoutes.post('/api/imports', async (c) => {
   const user = await getSessionUser(c);
   if (!user) {
     return c.json({ error: 'unauthorized' }, 401);
+  }
+
+  const db = drizzle(c.env.DB, { schema });
+  const limitCheck = await checkImportLimit(c.env, db, user.id);
+  if (!limitCheck.ok) {
+    return c.json(
+      { error: 'Free tier limit reached', used: limitCheck.used, limit: limitCheck.limit },
+      402,
+    );
   }
 
   let body: unknown;
@@ -64,8 +74,12 @@ importRoutes.get('/api/imports', async (c) => {
     .where(eq(schema.imports.userId, user.id))
     .orderBy(desc(schema.imports.createdAt))
     .limit(50);
+  const usage = await importedContactUsage(db, user.id);
 
-  return c.json({ imports: rows.map(importSummary) });
+  return c.json({
+    imports: rows.map(importSummary),
+    usage: { importedContacts: usage, limit: freeImportLimit(c.env) },
+  });
 });
 
 importRoutes.get('/api/imports/:id', async (c) => {

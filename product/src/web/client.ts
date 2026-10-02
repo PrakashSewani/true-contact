@@ -124,7 +124,11 @@ export const api = {
   contact: (id: string) => request<{ contact: ContactDetail }>(`/api/contacts/${id}`),
   review: () =>
     request<{ conflicts: ReviewConflict[]; proposals: ReviewProposal[] }>('/api/review'),
-  imports: () => request<{ imports: ImportJob[] }>('/api/imports'),
+  imports: () =>
+    request<{
+      imports: ImportJob[];
+      usage: { importedContacts: number; limit: number };
+    }>('/api/imports'),
   startPairing: () =>
     request<{ pairing: { code: string; expiresAt: string } }>('/api/pairing/start', {
       method: 'POST',

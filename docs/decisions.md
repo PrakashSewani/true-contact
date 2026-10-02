@@ -322,3 +322,20 @@ bearer token — WhatsApp credentials never exist anywhere in the flow:
   (`http://localhost:8787/*`); the deployed TrueContact origin is added at deploy time.
 
 **Confirmed by user:** 2026-10-02 (v1 scope D-004; pairing protocol D-011).
+
+## D-013: Free-tier limit enforcement
+
+**Date:** 2026-10-02
+
+**Decision:** The v1 free tier limits **lifetime imported contacts** per account:
+
+- The limit comes from the `FREE_IMPORT_LIMIT` Worker var (default 1000 when unset/invalid).
+- Enforcement is at **intake**: a new import (file or extension push) is rejected with `402`
+  when the account's `imported_contact` usage is already at or above the limit. Batches already
+  accepted may push usage slightly past the limit — the gate is "start no new import", not a
+  per-contact cliff.
+- Exports remain unlimited in v1; usage is reported on `GET /api/imports`
+  (`usage.importedContacts` / `usage.limit`) and shown on the imports page.
+- Changing limits is configuration, not code; billing stays out of v1 (D-004).
+
+**Confirmed by user:** 2026-10-02 (v1 scope D-004).

@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
 import * as schema from '../db/schema';
 import { queueImport } from '../imports/intake';
+import { checkImportLimit } from '../imports/limits';
 import { hashToken } from './pairing';
 
 export const extensionRoutes = new Hono<{ Bindings: Env }>();
@@ -31,6 +32,14 @@ extensionRoutes.post('/api/imports/extension', async (c) => {
 
   if (!record) {
     return c.json({ error: 'invalid or expired token' }, 401);
+  }
+
+  const limitCheck = await checkImportLimit(c.env, db, record.userId);
+  if (!limitCheck.ok) {
+    return c.json(
+      { error: 'Free tier limit reached', used: limitCheck.used, limit: limitCheck.limit },
+      402,
+    );
   }
 
   let body: unknown;

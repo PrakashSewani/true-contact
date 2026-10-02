@@ -5,6 +5,7 @@ import { api, errorMessage, type ImportJob } from '../client';
 export function ImportsPage() {
   const [version, setVersion] = useState(0);
   const [imports, setImports] = useState<ImportJob[] | null>(null);
+  const [usage, setUsage] = useState<{ importedContacts: number; limit: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pairing, setPairing] = useState<{ code: string; expiresAt: string } | null>(null);
@@ -19,6 +20,7 @@ export function ImportsPage() {
       .then((data) => {
         if (!cancelled) {
           setImports(data.imports);
+          setUsage(data.usage);
           setError(null);
         }
       })
@@ -109,6 +111,11 @@ export function ImportsPage() {
           disabled={busy}
           onChange={handleUpload}
         />
+        {usage && (
+          <p className="muted">
+            Free tier: {usage.importedContacts} of {usage.limit} imported contacts used.
+          </p>
+        )}
       </div>
 
       <div className="panel">
