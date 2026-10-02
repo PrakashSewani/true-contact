@@ -18,23 +18,24 @@ rule 4. Keep exactly one phase `in progress`.
 **Phase:** 3 — promo site, in progress: requirements and the landing page are built and stacked;
 merges pending.
 
-**Done this stack:** promo-site requirements (`docs/product.md` "Promo site", D-014) and the
+**Done this stack:** promo-site requirements (`docs/product.md` "Promo site", D-014); the
 landing page — single static Astro page with the recorded section order (hero with the
 identity-card proof, problem compare, four steps, never/always trust panels, WhatsApp connector
-with pairing steps, pricing, FAQ, footer); `site/src/config.ts` product origin overridable with
-`PUBLIC_APP_URL`; favicon + robots.txt; `ship-release` site deploy updated with the
-`PUBLIC_APP_URL` step.
+with pairing steps, pricing, FAQ, footer); production hostnames wired (D-015) —
+`truecontact.prakashsewani.com` (site) and `app.truecontact.prakashsewani.com` (product) as
+Worker Custom Domains, extension host permission added; favicon + robots.txt.
 
 **Verified:** `pnpm check` exit 0 (typecheck all four packages, Biome clean, Vitest 61/61, all
-builds). Browser smoke test on the built site (`astro preview`, agent-browser): 1280px in light
-and dark, 375px mobile with no horizontal overflow, FAQ open state, skip-link focus ring, and the
-reduced-motion path.
+builds, wrangler dry-run with the custom-domain routes and no Cloudflare account). Browser smoke
+test on the built site (`astro preview`, agent-browser): 1280px in light and dark, 375px mobile
+with no horizontal overflow, FAQ open state, skip-link focus ring, and the reduced-motion path.
 
-**Blocked by:** nothing — the phase-3 stack (#14, #15, and this slice) is under review and merges
+**Blocked by:** nothing — the phase-3 stack (#14–#16 and this slice) is under review and merges
 are pending.
 
 **Next action:** after the stack merges to `dev`: phase 4 — first release (labeled `dev` → `main`
-PR), then manual product + site deploys with `PUBLIC_APP_URL` set.
+PR), then manual deploys per the `ship-release` skill (product: D1/R2/Queues + secrets with
+`BETTER_AUTH_URL`; site: `PUBLIC_APP_URL`; extension packaging).
 
 ---
 

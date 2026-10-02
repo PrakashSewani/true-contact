@@ -51,19 +51,22 @@ npx wrangler r2 bucket create truecontact-imports   # once
 npx wrangler queues create truecontact-imports      # once
 npx wrangler d1 migrations apply DB --remote        # apply migrations
 npx wrangler secret put BETTER_AUTH_SECRET          # long random string
-npx wrangler secret put BETTER_AUTH_URL             # deployed origin, e.g. https://app.example.com
+npx wrangler secret put BETTER_AUTH_URL             # https://app.truecontact.prakashsewani.com (D-015)
 pnpm build && pnpm deploy                          # vite build + wrangler deploy
 ```
+
+The first deploy also creates the `app.truecontact.prakashsewani.com` Custom Domain (the route
+in `product/wrangler.jsonc`) with its DNS record and certificate automatically (D-015).
 
 **Promo site** (from `site/`):
 
 ```bash
-PUBLIC_APP_URL=https://<product-origin> pnpm deploy   # astro build && wrangler deploy (assets-only Worker "truecontact-site")
+PUBLIC_APP_URL=https://app.truecontact.prakashsewani.com pnpm deploy   # astro build && wrangler deploy (assets-only Worker "truecontact-site")
 ```
 
 `PUBLIC_APP_URL` fills the site's call-to-action links; without it they fall back to the
-`app.truecontact.example` placeholder (D-014). Custom domain and canonical URL are deploy-time
-decisions.
+`app.truecontact.example` placeholder (D-014). Deploy also creates this Worker's Custom Domain
+`truecontact.prakashsewani.com`; the canonical URL stays a deploy-time nicety (D-015).
 
 **Extension** (from `extension/`): `pnpm build && pnpm zip`, then upload the zip in the Chrome
 Web Store developer dashboard. Not automated.

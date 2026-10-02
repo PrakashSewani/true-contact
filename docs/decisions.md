@@ -364,3 +364,29 @@ and shares only brand constants from `shared/` (D-001 dependency rule).
 
 **Confirmed by user:** pending — phase-3 stack review (this entry lands with the site build and
 the `docs/product.md` section it records).
+
+## D-015: Production hostnames (prakashsewani.com)
+
+**Date:** 2026-10-02
+
+**Decision:** The product and promo site deploy on Cloudflare Worker Custom Domains under the
+existing `prakashsewani.com` zone (already on Cloudflare; the apex and `www` stay the personal
+portfolio, email routing untouched):
+
+- Promo site: `truecontact.prakashsewani.com` (`truecontact-site` Worker).
+- Product app: `app.truecontact.prakashsewani.com` (`truecontact` Worker); `BETTER_AUTH_URL`
+  and the site's `PUBLIC_APP_URL` both use `https://app.truecontact.prakashsewani.com`.
+- The extension's `host_permissions` adds the app host; the `*.workers.dev` hostnames remain a
+  fallback for smoke tests. Custom Domains create their DNS records and certificates
+  automatically, including for the multi-level subdomain (the generated Advanced Certificate
+  needs no ACM subscription — verified against the Workers custom-domains docs).
+
+If a dedicated product domain is bought later: add it as a Custom Domain, redirect the old
+hosts, and update the three origin values (`BETTER_AUTH_URL`, `PUBLIC_APP_URL`, extension host
+permission).
+
+**Rejected:** the apex or `www` for the product (they serve the live portfolio); buying a second
+domain now (unneeded cost; the migration stays cheap).
+
+**Confirmed by user:** 2026-10-02 (chose the product-named scheme over `app.prakashsewani.com`
+and deferring to a future domain).

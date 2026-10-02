@@ -92,9 +92,10 @@ Section order (single page):
 7. **FAQ and footer** — short answers (credentials, where data lives, export, sources) and the
    closing call to action.
 
-The primary CTA ("Open TrueContact") points at the product origin through a single site-side
-configuration constant (`site/src/config.ts`, overridable at build time with `PUBLIC_APP_URL`),
-filled at deploy time (D-014). No forms and no waitlist backend in v1.
+The primary CTA ("Open TrueContact") points at the product origin
+(`app.truecontact.prakashsewani.com`; a single site-side constant in `site/src/config.ts`,
+overridable at build time with `PUBLIC_APP_URL`). No forms and no waitlist backend in v1
+(D-014, D-015).
 
 Deploy-ready means: `pnpm check` green; a single static page that needs no client-side
 JavaScript; accessible semantics and focus states; responsive from ~360px; deployed as-is by the
