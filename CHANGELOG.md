@@ -22,6 +22,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ### Changed
 
+- Import limits are removed for the personal stage: no cap on imports, no `402` gate (usage
+  counters are still recorded; rate limiting and pricing are deferred to official shipping —
+  D-021).
 - Worker names in the repo configs now match the deployed Workers (`true-contact`,
   `true-contact-site`) so `wrangler` CLI commands target them correctly (D-017).
 
@@ -35,6 +38,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   numbers.
 - Contacts list and export no longer fail for accounts with more than 100 contacts (the D1
   bound-parameter limit broke the batch queries).
+- WhatsApp connector: phone numbers are captured through WhatsApp Web's in-page contact store
+  (WA-JS, Apache-2.0) — including LID contacts; the DOM-based capture stays as the fallback.
 
 ## [1.0.0] - 2026-10-02
 

@@ -31,7 +31,7 @@ accountRoutes.post('/api/account/delete-data', async (c) => {
     .where(eq(schema.identities.userId, user.id));
 
   // Imports cascade to observations (and their links/conflicts); identities cascade to
-  // values/links/conflicts/history. Usage counters are kept: they track the free-tier limit.
+  // values/links/conflicts/history. Usage counters are kept: they hold a running total.
   await db.delete(schema.imports).where(eq(schema.imports.userId, user.id));
   await db.delete(schema.identities).where(eq(schema.identities.userId, user.id));
   await db.delete(schema.sources).where(eq(schema.sources.userId, user.id));

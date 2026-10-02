@@ -15,25 +15,35 @@ rule 4. Keep exactly one phase `in progress`.
 
 ## Current handoff
 
-**Phase:** 4 — complete. **v1.0.0 is released and live**:
-`https://app.truecontact.prakashsewani.com` and `https://truecontact.prakashsewani.com`,
-deployed by Cloudflare Workers Builds (`true-contact` / `true-contact-site`).
+**Phase:** post-launch iteration — v1.2.0 released and live; the WhatsApp phone-capture stack
+(#38/#39) in review.
 
-**Done:** history reconciliation (#25) → release PR #26 (`release:major`) → `v1.0.0` tag +
-GitHub release; Workers Builds connected for both Workers; first deploys applied the D1
-migrations; post-launch Worker-name alignment recorded (D-017).
+**Done since v1.0.0:** chunked/resumable imports (D-018); personal-only access with admin
+approvals (D-019); store prep — connector icons + popup UX, privacy page, listing copy; phone
+capture through WhatsApp Web's in-page store via WA-JS (D-020); the personal-stage import cap
+removed (D-021). Releases: v1.1.0, v1.2.0 — both deployed through Workers Builds
+(`true-contact` / `true-contact-site`).
 
-**Verified (2026-10-02):** `/api/health` ok; app root 200; site root 200 with the CTA pointing at
-the app origin; TLS certificate active (Google Trust Services — the first request can fail while
-it provisions); D1 remote schema present; `/api/auth/ok` 200, sign-up validation and the session
-guard (401) behave; `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` set on the Worker; release
-workflow green.
+**Verified (2026-10-02):** releases v1.0.0–v1.2.0 green; live `/api/health` ok; the connector
+captured **3,268 contacts with 2,769 phone numbers** in a real WhatsApp Web session (console
+diagnostics); `pnpm check` green on the stack heads.
 
 **Blocked by:** nothing.
 
-**Next action:** the extension Chrome Web Store upload (manual, when ready). After that v1 is
-shipped; future work flows through `dev` PRs and labeled releases — every merge to `main`
-deploys both Workers automatically.
+**Next action:** verify the batched push in production (reload the extension → Delete all data in
+the app → Scan), then strip the temporary capture diagnostics and merge #38 → #39; prep the next
+release.
+
+---
+
+## Backlog (official shipping)
+
+- **Rate limiting + pricing** — replace the removed personal-stage import gate (revisit D-013
+  with D-021).
+- **Store listing live** — publish the extension zip (`extension/.output/truecontactextension-*.zip`),
+  then set `PUBLIC_EXTENSION_URL` / `VITE_EXTENSION_URL` so the site and app link to it.
+- **Site pricing copy** — the promo site still describes the old free-tier cap; revisit with the
+  pricing work.
 
 ---
 

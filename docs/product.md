@@ -56,8 +56,8 @@ information conflicts — with the user in control of every decision that alters
 - Contact data is never sold or used for advertising.
 - Not a messaging client — it manages contact information, not conversations.
 - **Explicitly out of v1:** device synchronization (writing contacts back to phones), payments
-  and billing (usage is tracked and free-tier limits are enforced, but no money changes hands),
-  and source adapters beyond WhatsApp, vCard, and CSV.
+  and billing (usage is tracked; billing and rate limiting are deferred to official shipping —
+  D-021), and source adapters beyond WhatsApp, vCard, and CSV.
 
 ## Success looks like
 
@@ -96,8 +96,8 @@ Section order (single page):
    canonical change is a user decision, data is never sold, export means no lock-in.
 5. **WhatsApp connector** — capture from WhatsApp Web through the extension and a pairing code;
    no WhatsApp password, OTP, or session secret is ever requested.
-6. **Pricing** — free to start: v1 has no billing; the free tier caps lifetime imported contacts
-   (D-013).
+6. **Pricing** — free to start: no billing in the personal stage and no import cap (D-021);
+   pricing and rate limiting are revisited when the app opens publicly.
 7. **FAQ and footer** — short answers (credentials, where data lives, export, sources) and the
    closing call to action.
 

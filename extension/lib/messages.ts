@@ -63,6 +63,7 @@ export interface CaptureDiagnostics {
   matchedCount: number;
   withPhone: number;
   reactFound: boolean;
+  captureError: string | null;
   firstTitle: string | null;
   sampleJid: string | null;
 }

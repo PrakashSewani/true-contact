@@ -4,7 +4,6 @@ import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
 import * as schema from '../db/schema';
 import { queueImport } from '../imports/intake';
-import { checkImportLimit } from '../imports/limits';
 import { membershipFor } from './access';
 import { hashToken } from './pairing';
 
@@ -38,14 +37,6 @@ extensionRoutes.post('/api/imports/extension', async (c) => {
   const membership = await membershipFor(c.env, record.userId);
   if (membership.status !== 'approved') {
     return c.json({ error: 'pending approval' }, 403);
-  }
-
-  const limitCheck = await checkImportLimit(c.env, db, record.userId);
-  if (!limitCheck.ok) {
-    return c.json(
-      { error: 'Free tier limit reached', used: limitCheck.used, limit: limitCheck.limit },
-      402,
-    );
   }
 
   let body: unknown;
