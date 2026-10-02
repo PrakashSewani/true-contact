@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
+import { collectInBatches } from '../db/batch';
 import * as schema from '../db/schema';
 import { getSessionUser } from './session';
 
@@ -29,37 +30,45 @@ contactRoutes.get('/api/contacts', async (c) => {
     return c.json({ contacts: [] });
   }
 
-  const values = await db
-    .select()
-    .from(schema.identityValues)
-    .where(inArray(schema.identityValues.identityId, ids));
+  const values = await collectInBatches(ids, (batch) =>
+    db.select().from(schema.identityValues).where(inArray(schema.identityValues.identityId, batch)),
+  );
 
-  const conflictCounts = await db
-    .select({ identityId: schema.conflicts.identityId, count: sql<number>`count(*)` })
-    .from(schema.conflicts)
-    .where(and(inArray(schema.conflicts.identityId, ids), eq(schema.conflicts.status, 'open')))
-    .groupBy(schema.conflicts.identityId);
+  const conflictCounts = await collectInBatches(ids, (batch) =>
+    db
+      .select({ identityId: schema.conflicts.identityId, count: sql<number>`count(*)` })
+      .from(schema.conflicts)
+      .where(and(inArray(schema.conflicts.identityId, batch), eq(schema.conflicts.status, 'open')))
+      .groupBy(schema.conflicts.identityId),
+  );
 
-  const proposalCounts = await db
-    .select({ identityId: schema.identityLinks.identityId, count: sql<number>`count(*)` })
-    .from(schema.identityLinks)
-    .where(
-      and(
-        inArray(schema.identityLinks.identityId, ids),
-        eq(schema.identityLinks.status, 'proposed'),
-      ),
-    )
-    .groupBy(schema.identityLinks.identityId);
+  const proposalCounts = await collectInBatches(ids, (batch) =>
+    db
+      .select({ identityId: schema.identityLinks.identityId, count: sql<number>`count(*)` })
+      .from(schema.identityLinks)
+      .where(
+        and(
+          inArray(schema.identityLinks.identityId, batch),
+          eq(schema.identityLinks.status, 'proposed'),
+        ),
+      )
+      .groupBy(schema.identityLinks.identityId),
+  );
 
-  const lastObserved = await db
-    .select({
-      identityId: schema.identityLinks.identityId,
-      last: sql<number | null>`max(${schema.observations.observedAt})`,
-    })
-    .from(schema.identityLinks)
-    .innerJoin(schema.observations, eq(schema.identityLinks.observationId, schema.observations.id))
-    .where(inArray(schema.identityLinks.identityId, ids))
-    .groupBy(schema.identityLinks.identityId);
+  const lastObserved = await collectInBatches(ids, (batch) =>
+    db
+      .select({
+        identityId: schema.identityLinks.identityId,
+        last: sql<number | null>`max(${schema.observations.observedAt})`,
+      })
+      .from(schema.identityLinks)
+      .innerJoin(
+        schema.observations,
+        eq(schema.identityLinks.observationId, schema.observations.id),
+      )
+      .where(inArray(schema.identityLinks.identityId, batch))
+      .groupBy(schema.identityLinks.identityId),
+  );
 
   const conflictsBy = new Map(conflictCounts.map((row) => [row.identityId, row.count]));
   const proposalsBy = new Map(proposalCounts.map((row) => [row.identityId, row.count]));

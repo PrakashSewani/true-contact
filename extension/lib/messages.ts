@@ -27,6 +27,7 @@ export interface ScanResult {
   ok: boolean;
   error?: string;
   pushed?: number;
+  withPhone?: number;
 }
 
 export interface StatusResult {
@@ -39,6 +40,34 @@ export interface CaptureCommand {
   type: 'capture';
 }
 
+export interface PingCommand {
+  type: 'ping';
+}
+
+export interface PongResult {
+  ok: true;
+}
+
+export interface BulkEntry {
+  id: string;
+  name: string | null;
+  phone: string | null;
+}
+
+export interface CaptureDiagnostics {
+  url: string;
+  strategy: string | null;
+  rowCount: number;
+  jidRows: number;
+  bulkFound: number;
+  matchedCount: number;
+  withPhone: number;
+  reactFound: boolean;
+  firstTitle: string | null;
+  sampleJid: string | null;
+}
+
 export interface CaptureResult {
   contacts: NormalizedContact[];
+  diagnostics?: CaptureDiagnostics;
 }

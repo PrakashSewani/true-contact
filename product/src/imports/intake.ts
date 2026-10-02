@@ -39,7 +39,7 @@ export async function queueImport(env: Env, params: QueueImportParams): Promise<
     fileName: params.fileName,
     createdAt: now,
   });
-  await env.IMPORTS_QUEUE.send({ importId });
+  await env.IMPORTS_QUEUE.send({ importId, cursor: 0 });
 
   return { importId, sourceId };
 }

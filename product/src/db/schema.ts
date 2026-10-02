@@ -113,6 +113,9 @@ export const imports = sqliteTable(
     fileName: text('file_name'),
     stats: text('stats', { mode: 'json' }).$type<ImportStats>(),
     error: text('error'),
+    cursor: integer('cursor').notNull().default(0),
+    total: integer('total').notNull().default(0),
+    progressAt: integer('progress_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     startedAt: integer('started_at', { mode: 'timestamp' }),
     finishedAt: integer('finished_at', { mode: 'timestamp' }),
@@ -361,3 +364,18 @@ export const extensionTokens = sqliteTable(
   },
   (table) => [index('extension_tokens_user_id_idx').on(table.userId)],
 );
+
+export const memberships = sqliteTable('memberships', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  role: text('role', { enum: ['admin', 'member'] })
+    .notNull()
+    .default('member'),
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] })
+    .notNull()
+    .default('pending'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  decidedAt: integer('decided_at', { mode: 'timestamp' }),
+  decidedBy: text('decided_by').references(() => user.id, { onDelete: 'set null' }),
+});

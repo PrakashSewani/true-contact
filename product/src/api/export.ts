@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
+import { collectInBatches } from '../db/batch';
 import * as schema from '../db/schema';
 import { type ExportContact, renderCsv, renderVCard } from '../domain/export';
 import { getSessionUser } from './session';
@@ -57,10 +58,12 @@ async function loadExportContacts(
 
   const ids = identities.map((identity) => identity.id);
   const values = ids.length
-    ? await db
-        .select()
-        .from(schema.identityValues)
-        .where(inArray(schema.identityValues.identityId, ids))
+    ? await collectInBatches(ids, (batch) =>
+        db
+          .select()
+          .from(schema.identityValues)
+          .where(inArray(schema.identityValues.identityId, batch)),
+      )
     : [];
 
   const valuesBy = new Map<string, (typeof values)[number][]>();

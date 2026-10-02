@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- Chrome Web Store prep: extension icon set, a popup that locks the pairing URL once connected and
+  offers Disconnect, a notice (and disabled scan) when opened outside WhatsApp Web, a site privacy
+  policy page, extension install links on the site and the app's Imports page, and the store
+  listing copy (`docs/extension-store-listing.md`).
+
+### Changed
+
+- Worker names in the repo configs now match the deployed Workers (`true-contact`,
+  `true-contact-site`) so `wrangler` CLI commands target them correctly (D-017).
+
+### Fixed
+
+- WhatsApp connector: chat capture reads chat IDs from WhatsApp's page state (the DOM no longer
+  carries them) — covering the full chat and contact lists, not just rendered rows — and a scan
+  that finds nothing reports what the capture actually saw.
+- WhatsApp connector: phone numbers are now captured for LID-based contacts too (WhatsApp exposes
+  the number on the page's contact model), and the popup reports how many contacts came with
+  numbers.
+- Contacts list and export no longer fail for accounts with more than 100 contacts (the D1
+  bound-parameter limit broke the batch queries).
+
 ## [1.0.0] - 2026-10-02
 
 ### Added

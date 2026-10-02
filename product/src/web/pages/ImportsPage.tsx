@@ -1,6 +1,7 @@
 import type { ChangeEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { api, errorMessage, type ImportJob } from '../client';
+import { EXTENSION_STORE_URL } from '../config';
 
 export function ImportsPage() {
   const [version, setVersion] = useState(0);
@@ -8,6 +9,7 @@ export function ImportsPage() {
   const [usage, setUsage] = useState<{ importedContacts: number; limit: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [pairing, setPairing] = useState<{ code: string; expiresAt: string } | null>(null);
   const [pairingBusy, setPairingBusy] = useState(false);
   const [pairingError, setPairingError] = useState<string | null>(null);
@@ -69,6 +71,20 @@ export function ImportsPage() {
     }
   }
 
+  async function handleResume(id: string) {
+    setBusyId(id);
+    setError(null);
+
+    try {
+      await api.resumeImport(id);
+      setVersion((value) => value + 1);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handlePairing() {
     setPairingBusy(true);
     setPairingError(null);
@@ -116,6 +132,10 @@ export function ImportsPage() {
             Free tier: {usage.importedContacts} of {usage.limit} imported contacts used.
           </p>
         )}
+        <p className="muted">
+          Large imports process in small background batches and can take a while — progress shows
+          below, and a paused import can be resumed.
+        </p>
       </div>
 
       <div className="panel">
@@ -123,6 +143,13 @@ export function ImportsPage() {
         <p className="muted">
           Open the TrueContact browser extension on WhatsApp Web and enter this pairing code within
           10 minutes.
+        </p>
+        <p className="muted">
+          Don&apos;t have the connector yet?{' '}
+          <a href={EXTENSION_STORE_URL} target="_blank" rel="noreferrer">
+            Install it from the Chrome Web Store
+          </a>
+          .
         </p>
         {pairingError && <p className="error">{pairingError}</p>}
         {pairing ? (
@@ -150,27 +177,58 @@ export function ImportsPage() {
         <p className="muted">No imports yet.</p>
       ) : (
         <ul className="list">
-          {imports.map((job) => (
-            <li key={job.id} className="panel">
-              <div className="list-main">
-                <strong>{job.fileName ?? 'Import'}</strong>
-                <span className="muted">
-                  {new Date(job.createdAt).toLocaleString()}
-                  {job.stats
-                    ? ` · ${job.stats.contacts ?? 0} contacts · ${job.stats.created ?? 0} new · ${
-                        job.stats.linked ?? 0
-                      } matched · ${job.stats.proposed ?? 0} to review · ${
-                        job.stats.conflicts ?? 0
-                      } conflicts · ${job.stats.skipped ?? 0} skipped`
-                    : ''}
+          {imports.map((job) => {
+            const stalled = isStalled(job);
+
+            return (
+              <li key={job.id} className="panel">
+                <div className="list-main">
+                  <strong>{job.fileName ?? 'Import'}</strong>
+                  <span className="muted">
+                    {new Date(job.createdAt).toLocaleString()}
+                    {job.status === 'processing' && job.total > 0
+                      ? ` · processing ${Math.min(job.cursor, job.total)} of ${job.total}`
+                      : ''}
+                    {job.stats
+                      ? ` · ${job.stats.contacts ?? 0} contacts · ${job.stats.created ?? 0} new · ${
+                          job.stats.linked ?? 0
+                        } matched · ${job.stats.proposed ?? 0} to review · ${
+                          job.stats.conflicts ?? 0
+                        } conflicts · ${job.stats.skipped ?? 0} skipped`
+                      : ''}
+                  </span>
+                </div>
+                <span className={`badge badge-${stalled ? 'warn' : job.status}`}>
+                  {stalled ? 'paused' : job.status}
                 </span>
-              </div>
-              <span className={`badge badge-${job.status}`}>{job.status}</span>
-              {job.error && <p className="error">{job.error}</p>}
-            </li>
-          ))}
+                {stalled && (
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    disabled={busyId === job.id}
+                    onClick={() => void handleResume(job.id)}
+                  >
+                    Resume processing
+                  </button>
+                )}
+                {job.error && <p className="error">{job.error}</p>}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
   );
+}
+
+const STALE_AFTER_MS = 10 * 60 * 1000;
+
+function isStalled(job: ImportJob): boolean {
+  if (job.status !== 'processing') {
+    return false;
+  }
+
+  const reference = job.progressAt ?? job.createdAt;
+
+  return Date.now() - new Date(reference).getTime() > STALE_AFTER_MS;
 }

@@ -91,8 +91,31 @@ export interface ImportJob {
   status: string;
   stats: ImportStats | null;
   error: string | null;
+  cursor: number;
+  total: number;
+  progressAt: string | null;
   createdAt: string;
   finishedAt: string | null;
+}
+
+export interface Membership {
+  role: 'admin' | 'member';
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface Me {
+  user: { id: string; email: string; name: string };
+  membership: Membership;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  role: 'admin' | 'member';
+  status: 'pending' | 'approved' | 'rejected';
+  decidedAt: string | null;
 }
 
 export function errorMessage(cause: unknown): string {
@@ -120,6 +143,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 export const api = {
+  me: () => request<Me>('/api/me'),
   contacts: () => request<{ contacts: ContactSummary[] }>('/api/contacts'),
   contact: (id: string) => request<{ contact: ContactDetail }>(`/api/contacts/${id}`),
   review: () =>
@@ -136,6 +160,8 @@ export const api = {
     }),
   createImport: (fileName: string, content: string) =>
     request<{ import: ImportJob }>('/api/imports', { method: 'POST', body: { fileName, content } }),
+  resumeImport: (id: string) =>
+    request<{ import: ImportJob }>(`/api/imports/${id}/resume`, { method: 'POST', body: {} }),
   confirmLink: (id: string) => request(`/api/links/${id}/confirm`, { method: 'POST', body: {} }),
   rejectLink: (id: string) => request(`/api/links/${id}/reject`, { method: 'POST', body: {} }),
   resolveConflict: (id: string, resolution: string, value?: string) =>
@@ -153,4 +179,9 @@ export const api = {
     request(`/api/contacts/${id}/values`, { method: 'POST', body: value }),
   deleteValue: (id: string, valueId: string) =>
     request(`/api/contacts/${id}/values/${valueId}`, { method: 'DELETE' }),
+  adminUsers: () => request<{ users: AdminUser[] }>('/api/admin/users'),
+  approveUser: (id: string) =>
+    request(`/api/admin/users/${id}/approve`, { method: 'POST', body: {} }),
+  rejectUser: (id: string) =>
+    request(`/api/admin/users/${id}/reject`, { method: 'POST', body: {} }),
 };
