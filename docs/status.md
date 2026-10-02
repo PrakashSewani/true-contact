@@ -15,25 +15,26 @@ rule 4. Keep exactly one phase `in progress`.
 
 ## Current handoff
 
-**Phase:** 4 — launch, in progress: deploy model recorded (D-016); the one-time Cloudflare setup
-is next.
+**Phase:** 4 — launch, in progress: deploy model recorded (D-016), resources created and the D1
+id wired — the release and the Workers Builds connection are next.
 
 **Done this stack:** phase-3 review recorded (status, architecture hostnames, D-014 confirmed);
 deployments move to Cloudflare Workers Builds — per-Worker connection settings and the one-time
-dashboard setup steps recorded in the `ship-release` skill (D-016).
+dashboard setup steps recorded in the `ship-release` skill (D-016); dashboard resources created
+(`truecontact` D1, `truecontact-imports`) and the real `database_id` wired into
+`product/wrangler.jsonc`.
 
 **Verified:** `pnpm check` exit 0 (typecheck ×4, Biome clean, Vitest 61/61, all builds,
 wrangler dry-run); CI green on #14–#18 and on the `dev` merge; phase-3 browser re-smoke —
 1280px light + dark, 375px mobile without horizontal overflow, FAQ toggle, skip-link focus, axe
 clean (WCAG 2 A/AA, 0 violations).
 
-**Blocked by:** the one-time Cloudflare setup — create D1/R2/Queues; the D1 database ID must be
-wired into `product/wrangler.jsonc` and reach `main` before the builds connect (a connection's
-first build deploys whatever `main` currently holds).
+**Blocked by:** the phase-4 stack merges (#20–#22); the Workers Builds connection happens after
+the release lands (a connection's first build deploys whatever `main` currently holds).
 
-**Next action:** wire the real D1 id (next slice), then open the `release:major` `dev` → `main`
-release PR (v1.0.0); after it merges, connect Workers Builds per the `ship-release` skill and
-verify the first deploy.
+**Next action:** merge the stack; then open the `release:major` `dev` → `main` release PR
+(v1.0.0) — after it merges, connect Workers Builds per the `ship-release` skill (build API
+token + settings) and verify the first deploy.
 
 ---
 
