@@ -58,8 +58,12 @@ pnpm build && pnpm deploy                          # vite build + wrangler deplo
 **Promo site** (from `site/`):
 
 ```bash
-pnpm deploy    # astro build && wrangler deploy (assets-only Worker "truecontact-site")
+PUBLIC_APP_URL=https://<product-origin> pnpm deploy   # astro build && wrangler deploy (assets-only Worker "truecontact-site")
 ```
+
+`PUBLIC_APP_URL` fills the site's call-to-action links; without it they fall back to the
+`app.truecontact.example` placeholder (D-014). Custom domain and canonical URL are deploy-time
+decisions.
 
 **Extension** (from `extension/`): `pnpm build && pnpm zip`, then upload the zip in the Chrome
 Web Store developer dashboard. Not automated.

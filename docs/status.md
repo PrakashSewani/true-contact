@@ -15,22 +15,26 @@ rule 4. Keep exactly one phase `in progress`.
 
 ## Current handoff
 
-**Phase:** 3 — promo site, in progress: requirements recorded (stack slice 1); the landing-page
-build is the next slice.
+**Phase:** 3 — promo site, in progress: requirements and the landing page are built and stacked;
+merges pending.
 
-**Done this slice:** promo-site requirements — section order, CTA behavior (product origin via
-`site/src/config.ts` / `PUBLIC_APP_URL`, filled at deploy), deploy target (`truecontact-site`
-assets-only Worker, manual), acceptance criteria; recorded in `docs/product.md` ("Promo site")
-and D-014.
+**Done this stack:** promo-site requirements (`docs/product.md` "Promo site", D-014) and the
+landing page — single static Astro page with the recorded section order (hero with the
+identity-card proof, problem compare, four steps, never/always trust panels, WhatsApp connector
+with pairing steps, pricing, FAQ, footer); `site/src/config.ts` product origin overridable with
+`PUBLIC_APP_URL`; favicon + robots.txt; `ship-release` site deploy updated with the
+`PUBLIC_APP_URL` step.
 
-**Verified:** docs-only slice; `pnpm lint` (Biome, markdown included) green on top of the
-phase-2 refresh, whose full `pnpm check` re-run on merged `dev` was exit 0 (typecheck for all
-four packages, 87 files clean, Vitest 61/61, all builds).
+**Verified:** `pnpm check` exit 0 (typecheck all four packages, Biome clean, Vitest 61/61, all
+builds). Browser smoke test on the built site (`astro preview`, agent-browser): 1280px in light
+and dark, 375px mobile with no horizontal overflow, FAQ open state, skip-link focus ring, and the
+reduced-motion path.
 
-**Blocked by:** nothing — the phase-3 stack is under review and merges are pending.
+**Blocked by:** nothing — the phase-3 stack (#14, #15, and this slice) is under review and merges
+are pending.
 
-**Next action:** landing-page slice — build the single page to the recorded requirements, then
-final verification.
+**Next action:** after the stack merges to `dev`: phase 4 — first release (labeled `dev` → `main`
+PR), then manual product + site deploys with `PUBLIC_APP_URL` set.
 
 ---
 
