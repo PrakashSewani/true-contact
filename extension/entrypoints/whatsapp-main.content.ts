@@ -30,17 +30,12 @@ export default defineContentScript({
       }
 
       try {
-        wppContactCount = 0;
-        wppDedupedCount = 0;
-        wppFilteredCount = 0;
-
         const wppEntries = await captureWppEntries();
         const usingWpp = wppEntries.length > 0;
         // When WA-JS answers, push exactly the address book — the DOM/chat-list capture is
         // only a fallback for when the store is unavailable.
         const rows = usingWpp ? [] : captureRows();
         const bulk = usingWpp ? wppEntries : captureBulk();
-        debugCapture(rows, bulk);
 
         window.postMessage(
           {
@@ -139,10 +134,6 @@ async function waitForWpp(client: WppLike): Promise<void> {
   }
 }
 
-let wppContactCount = 0;
-let wppDedupedCount = 0;
-let wppFilteredCount = 0;
-
 // Meta AI's WhatsApp number is a fixed, globally used value; it is not a person in the address book.
 const META_AI_ID = '13135550002@c.us';
 
@@ -188,8 +179,6 @@ async function captureWppEntries(): Promise<BulkEntry[]> {
     return [];
   }
 
-  wppContactCount = contacts.length;
-
   const skipIds = ownContactIds(client);
   skipIds.add(META_AI_ID);
 
@@ -203,7 +192,6 @@ async function captureWppEntries(): Promise<BulkEntry[]> {
       }
 
       if (skipIds.has(id)) {
-        wppFilteredCount += 1;
         continue;
       }
 
@@ -240,7 +228,6 @@ function dedupeByPhone(entries: BulkEntry[]): BulkEntry[] {
   const byPhone = new Map<string, BulkEntry>();
   const order: string[] = [];
   const withoutPhone: BulkEntry[] = [];
-  let deduped = 0;
 
   for (const entry of entries) {
     if (!entry.phone) {
@@ -256,16 +243,12 @@ function dedupeByPhone(entries: BulkEntry[]): BulkEntry[] {
       continue;
     }
 
-    deduped += 1;
-
     if (!existing.id.endsWith('@c.us') && entry.id.endsWith('@c.us')) {
       byPhone.set(entry.phone, { ...entry, name: entry.name ?? existing.name });
     } else if (!existing.name && entry.name) {
       existing.name = entry.name;
     }
   }
-
-  wppDedupedCount = deduped;
 
   const dedupedEntries: BulkEntry[] = [];
   for (const phone of order) {
@@ -307,98 +290,12 @@ interface RowCapture {
   phone: string | null;
 }
 
-function debugCapture(rows: RowCapture[], bulk: BulkEntry[]): void {
-  try {
-    const client = wpp();
-    const payload = {
-      rows: rows.length,
-      rowsWithPhone: rows.filter((row) => row.phone).length,
-      bulk: bulk.length,
-      bulkWithPhone: bulk.filter((entry) => entry.phone).length,
-      wpp: client
-        ? { present: true, ready: safeReady(client), contacts: wppContactCount }
-        : { present: false },
-      dedupedByPhone: wppDedupedCount,
-      filteredOut: wppFilteredCount,
-      rowSample: rows.slice(0, 4),
-      bulkSample: bulk.slice(0, 4).map((entry) => ({ id: entry.id, phone: entry.phone })),
-      trace: traceFirstRow(),
-    };
-
-    console.log(`[TrueContact] capture ${JSON.stringify(payload)}`);
-    console.log('[TrueContact] all contacts', bulk);
-  } catch (error) {
-    console.log('[TrueContact] capture debug failed', error);
-  }
-}
-
 function safeReady(client: WppLike): boolean | undefined {
   try {
     return client.isReady;
   } catch {
     return undefined;
   }
-}
-
-function traceFirstRow(): unknown {
-  const rows = Array.from(document.querySelectorAll('[role="listitem"]'));
-
-  for (const row of rows) {
-    let node: Element | null = row;
-
-    for (let depth = 0; node && depth < 6; depth += 1, node = node.parentElement) {
-      const record = node as unknown as Record<string, unknown>;
-      const propsKey = Object.keys(record).find((key) => key.startsWith('__reactProps$'));
-      const fiberKey = Object.keys(record).find((key) => key.startsWith('__reactFiber$'));
-      const levels: unknown[] = [];
-
-      if (propsKey) {
-        levels.push(record[propsKey]);
-      }
-      if (fiberKey) {
-        let fiber = record[fiberKey] as FiberLike | null | undefined;
-
-        for (let level = 0; fiber && level < 30; level += 1) {
-          levels.push(fiber.memoizedProps);
-          fiber = fiber.return ?? null;
-        }
-      }
-
-      for (const props of levels) {
-        if (!props || typeof props !== 'object') {
-          continue;
-        }
-
-        const id = idFromProps(props);
-        if (!id) {
-          continue;
-        }
-
-        const p = props as Record<string, unknown>;
-        const descriptor = p.data as Record<string, unknown> | undefined;
-        const model = (descriptor?.data as Record<string, unknown> | undefined) ?? descriptor;
-
-        if (!model || typeof model !== 'object') {
-          continue;
-        }
-
-        const keys = Object.keys(model).slice(0, 80);
-        const contact = model.contact as Record<string, unknown> | undefined;
-
-        return {
-          id,
-          modelKeys: keys,
-          phoneishKeys: keys.filter((key) => /phone/i.test(key)),
-          hasContact: !!contact,
-          contactPhoneishKeys: contact
-            ? Object.keys(contact).filter((key) => /phone/i.test(key))
-            : null,
-        };
-      }
-    }
-  }
-
-  return 'no row with id found';
 }
 
 function captureRows(): RowCapture[] {
