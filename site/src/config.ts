@@ -6,9 +6,9 @@
 export const APP_URL = import.meta.env.PUBLIC_APP_URL ?? 'https://app.truecontact.example';
 
 /**
- * Chrome Web Store listing for the WhatsApp connector. Set PUBLIC_EXTENSION_URL
- * at deploy time once the listing exists; the fallback is a store search so the
- * link keeps working either way.
+ * Chrome Web Store listing for the WhatsApp connector. The listing publishes together with the
+ * public launch — until then this is unset and the site shows the closed-beta path instead of
+ * store links. Set PUBLIC_EXTENSION_URL at deploy time once the listing is live (see the
+ * ship-release skill).
  */
-export const EXTENSION_URL =
-  import.meta.env.PUBLIC_EXTENSION_URL ?? 'https://chromewebstore.google.com/search/TrueContact';
+export const EXTENSION_URL = import.meta.env.PUBLIC_EXTENSION_URL;

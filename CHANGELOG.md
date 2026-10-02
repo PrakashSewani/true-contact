@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Changed
+
+- Promo site: closed-beta positioning — the CTAs now apply for access (accounts are approved by
+  hand), Chrome Web Store links stay hidden until the connector publishes with the public launch,
+  and the pricing section no longer claims a free-tier cap.
+
 ## [1.2.1] - 2026-10-02
 
 ### Added

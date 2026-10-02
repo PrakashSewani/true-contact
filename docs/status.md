@@ -24,7 +24,8 @@ capture through WhatsApp Web's in-page store via WA-JS (D-020); the personal-sta
 removed (D-021); capture corrected to the address book only, `@lid`/`@c.us` folded per phone, and
 Meta AI + the account's own card filtered; console diagnostics removed (#41); one shared UI system
 for the app and the site, with the owner credited (D-022, #42); releases v1.1.0–v1.2.1 deployed
-through Workers Builds.
+through Workers Builds; the promo site now presents the closed beta (no store links until the
+public launch).
 
 **Verified (2026-10-02):** live `/api/health` ok; a real session scan pushed **493 unique
 contacts** (every externalId `@c.us`, no duplicates, Meta AI and self absent); `pnpm check` green
@@ -33,8 +34,8 @@ HTML carries the brand theme (`#2f6f4f` / `#6fbf94` dark) with zero hydration.
 
 **Blocked by:** nothing.
 
-**Next action:** spot-check the deployed surfaces after the v1.2.1 build (app sign-in + site
-footer credit), then resume the shipping backlog (store listing, pricing copy, rate limiting).
+**Next action:** land the closed-beta site copy (`site/closed-beta-copy`) and ship it with the
+next release; the public launch then publishes the extension store listing.
 
 ---
 
@@ -42,10 +43,10 @@ footer credit), then resume the shipping backlog (store listing, pricing copy, r
 
 - **Rate limiting + pricing** — replace the removed personal-stage import gate (revisit D-013
   with D-021).
-- **Store listing live** — publish the extension zip (`extension/.output/truecontactextension-*.zip`),
-  then set `PUBLIC_EXTENSION_URL` / `VITE_EXTENSION_URL` so the site and app link to it.
-- **Site pricing copy** — the promo site still describes the old free-tier cap; revisit with the
-  pricing work.
+- **Public launch: publish the extension with the app** — the connector ships together with the
+  public app (the site hides store links until then). On that day: publish the store listing and
+  set `PUBLIC_EXTENSION_URL` (site — the config already reads it) and `VITE_EXTENSION_URL`
+  (product) so both link straight to it.
 
 ---
 
