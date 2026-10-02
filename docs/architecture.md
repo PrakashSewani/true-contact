@@ -23,7 +23,7 @@ adapter internals — the extension is one source adapter, not a dependency of t
 | API | `product/src/api` | Hono app: `/api/health`, better-auth handler at `/api/auth/*`, session-guarded routes |
 | Auth | `product/src/api/auth.ts` | better-auth on D1, email + password; email verification is deferred until an email provider exists |
 | Domain | `product/src/domain` | Pure contact logic (normalization today; reconciliation in phase 2) |
-| Database | `product/src/db/schema.ts` | Drizzle schema; auth tables exist now, contact-graph tables arrive in phase 2 |
+| Database | `product/src/db/schema.ts` | Drizzle schema: auth tables plus the contact graph (identities, observations, links, conflicts, history) |
 | Import pipeline | Worker + `IMPORTS_QUEUE` consumer | Chunked processing to stay inside Workers CPU limits |
 | Raw imports | `IMPORTS_BUCKET` (R2) | Temporary raw payloads; minimized retention, never the canonical store |
 | WhatsApp connector | `extension/` | Captures legitimately available WhatsApp Web contact data and pushes normalized batches |
@@ -42,21 +42,32 @@ Bindings in `product/wrangler.jsonc`: `DB` (D1), `IMPORTS_BUCKET` (R2), `IMPORTS
    using blocking keys (normalized phone/email, name similarity). It writes observations, proposed
    matches, conflicts, and history events; unknown people become new identities. Automated steps
    are **non-destructive**.
-4. The web app presents matches, duplicates, and conflicts. The user confirms merges, splits, and
-   canonical edits — every canonical change is an explicit user action and appends history events
-   (actor + timestamp).
+4. The web app presents new contacts, matches, and conflicts. Non-conflicting values are absorbed
+   automatically (with provenance); the user confirms merges, splits, and conflict resolutions —
+   every overwrite is an explicit user action and appends a history event (actor + timestamp).
 5. Exports render the canonical graph as vCard/CSV.
 6. Usage operations are counted per account; free-tier limits are enforced from configuration
    (no billing in v1).
 
-## Domain model (phase 2 target)
+## Domain model
 
-`identities` (canonical contact) · `observations` (one normalized record from one source) ·
-`identity_links` (observation ↔ identity with confidence and status) · `conflicts` (competing
-values for a canonical field, with provenance) · `history_events` (append-only: first seen, last
-observed, changed, merged, split, resolved) · `sources` + `imports` (connections and jobs) ·
-`usage_operations` (per-account operation counts). Auth tables (`user`, `session`, `account`,
-`verification`) exist today.
+Defined in `product/src/db/schema.ts`; every graph row carries `user_id` for tenant scoping, with
+text UUID primary keys and integer-second timestamps matching the auth tables. Migration `0001`
+creates the graph:
+
+- `identities` — canonical contact; `merged_into_id` tombstones merges instead of deleting.
+- `identity_values` — canonical phones/emails, normalized for blocking and editable without an
+  observation source.
+- `observations` — one normalized record per intake, full payload preserved.
+- `observation_identifiers` — indexed normalized phone/email per observation: the blocking keys.
+- `identity_links` — observation ↔ identity; confidence, method, status
+  (`auto | proposed | confirmed | rejected`); one identity per observation.
+- `conflicts` — competing value for a canonical field with provenance and resolution state.
+- `history_events` — append-only: actor, type, payload, timestamp.
+- `sources` + `imports` — connections and jobs (status, R2 raw key, stats).
+- `usage_operations` — per-account operation counts; limits enforced by query.
+
+Auth tables (`user`, `session`, `account`, `verification`) exist alongside.
 
 ## Boundaries and invariants
 
@@ -81,6 +92,8 @@ observed, changed, merged, split, resolved) · `sources` + `imports` (connection
 ## Branch and release flow
 
 - `dev` is the default integration branch; changes arrive through PRs targeting `dev`.
+- `.github/workflows/ci.yml` runs `pnpm check` on pull requests targeting `dev` or `main`, and on
+  pushes to `dev`.
 - Releases are a PR from `dev` to `main` carrying exactly one `release:patch|minor|major` label.
 - On merge to `main`, `.github/workflows/release.yml` validates the single label, runs
   `scripts/release.mjs` (bumps the root `package.json` version and opens a new CHANGELOG section),

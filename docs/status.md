@@ -8,40 +8,32 @@ rule 4. Keep exactly one phase `in progress`.
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Requirements + stack selection: fill `docs/product.md`, choose the stack, record D-001 | complete |
-| 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | in progress — scaffolded + verified; PR #1 awaiting merge to `dev` |
-| 2 | Product: the core workflow, end to end | not started |
+| 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | complete — merged to `dev` in PR #1 |
+| 2 | Product: the core workflow, end to end | in progress — contact-graph schema landed (migration `0001`); import pipeline next |
 | 3 | Promo site: the site that explains it and sends people to it | not started |
 | 4 | Launch: first release tagged, site deployed | not started |
 
 ## Current handoff
 
-**Phase:** 1 — scaffolded and verified; awaiting the bootstrap PR merge to `dev`.
+**Phase:** 2 — product core workflow; schema slice landed, next slice is the import pipeline.
 
-**Done this session:** captured the brief (`docs/product.md`); recorded D-001 (stack with
-live-resolved versions), D-004 (v1 scope, billing deferred), D-005 (release deploy key);
-scaffolded the pnpm workspace — `product/` (Hono + React SPA in one Worker, better-auth on D1,
-R2 + Queues bindings, Drizzle migration, 7 passing tests), `extension/` (WXT MV3 skeleton),
-`site/` (Astro landing placeholder), `shared/` (normalized-contact + pairing contracts);
-wired `pnpm check`, CI, the label-driven release workflow (`scripts/release.mjs`), created the
-`release:*` labels, protected `dev` and `main`, and stored the release deploy key.
+**Done this session:** pulled the merged `dev` (PR #1) and reviewed every doc against the repo;
+refreshed this tracker and the CI note in `docs/architecture.md`; settled the increment semantics
+with the user — exact identifier matches auto-link, non-conflicting values auto-apply with
+provenance, conflicts queue for review — and recorded them as D-006; implemented the contact-graph
+schema (identities, identity_values, observations, observation_identifiers, identity_links,
+conflicts, history_events, sources, imports, usage_operations) in `product/src/db/schema.ts`;
+generated migration `0001_pale_nightmare.sql`; added `product/test/schema.test.ts` (full-graph
+roundtrip, one-identity-per-observation, user-delete cascade across all ten tables).
 
-**Verified:** `pnpm check` green from the root; `wrangler dev` serves `/api/health`, 401 `/api/me`,
-and the SPA, with register → session → `/api/me` working through the Vite proxy (and wrong
-password → 401); `wxt dev`/`wxt build` produce MV3 output; `astro dev`/`astro build` serve the
-placeholder; local D1 migration applies; release script exercised in a scratch copy (minor/patch,
-invalid arg, changelog section); workflows validated (YAML parse + jq/awk snippets run);
-deploy-key bypass proven with a throwaway ruleset + branch (then deleted).
+**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (50 files),
+Vitest 10/10 (api + normalize + schema), product/extension/site builds all green.
 
-**Verifier pass (independent subagent):** all nine criteria passed; it found two defects — the
-release tag would not reach the remote (`--follow-tags` skips lightweight tags) and the
-fresh-clone quick-start lacked a build before `wrangler dev` — both fixed and re-verified
-(annotated tag + explicit ref push tested against a scratch remote; label edge cases covered).
+**Blocked by:** nothing. Known open item: the release path is still unproven until the first
+tagged release.
 
-**Blocked by:** nothing. The first real release is still unproven end to end because no release
-has happened yet (no `v*` tag exists).
-
-**Next action:** merge the bootstrap PR to `dev` (CI runs on it), then start phase 2 with the
-contact-graph domain schema (identities, observations, links, conflicts, history).
+**Next action:** after this PR merges, start the import pipeline slice with the vCard/CSV parsers
+(pure `product/src/domain` functions producing `NormalizedContact`, fully tested).
 
 ---
 
