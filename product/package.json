@@ -21,12 +21,15 @@
     "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.12",
+    "papaparse": "^5.7.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-router": "^8.4.0"
+    "react-router": "^8.4.0",
+    "vcf": "^2.1.2"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",

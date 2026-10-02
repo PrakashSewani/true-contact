@@ -22,7 +22,7 @@ adapter internals — the extension is one source adapter, not a dependency of t
 | Web app | `product/src/web` | React SPA: register/sign-in and session guard today; the contact graph UI arrives in phase 2 |
 | API | `product/src/api` | Hono app: `/api/health`, better-auth handler at `/api/auth/*`, session-guarded routes |
 | Auth | `product/src/api/auth.ts` | better-auth on D1, email + password; email verification is deferred until an email provider exists |
-| Domain | `product/src/domain` | Pure contact logic (normalization today; reconciliation in phase 2) |
+| Domain | `product/src/domain` | Pure contact logic: normalization, vCard/CSV file parsing (reconciliation next) |
 | Database | `product/src/db/schema.ts` | Drizzle schema: auth tables plus the contact graph (identities, observations, links, conflicts, history) |
 | Import pipeline | Worker + `IMPORTS_QUEUE` consumer | Chunked processing to stay inside Workers CPU limits |
 | Raw imports | `IMPORTS_BUCKET` (R2) | Temporary raw payloads; minimized retention, never the canonical store |

@@ -174,3 +174,35 @@ text UUID primary keys and integer-second timestamps, consistent with the auth t
 - Identifiers stored only inside the observation JSON — blocking queries need indexed rows.
 
 **Confirmed by user:** 2026-10-02 (auto-add plus review conflicts; auto-link exact matches).
+
+## D-007: File import parsers and formats
+
+**Date:** 2026-10-02
+
+**Decision:** vCard and CSV file imports are parsed by pure functions in `product/src/domain`
+(`parseVCard`, `parseCsv`) that produce `NormalizedContact` records through the shared contract.
+
+- **vCard:** `vcf@2.1.2` (MIT), chosen after testing 2.1/3.0/4.0 samples: it parses all three,
+  including folded lines and TYPE params. A thin adapter in our code decodes QUOTED-PRINTABLE
+  (with charset), strips `tel:` URI prefixes, maps TYPE params to labels, unescapes vCard text,
+  uses the card UID as `externalId`, and falls back FN → N for the display name. The library
+  ships no types, so we keep a minimal local declaration.
+- **CSV:** `papaparse@5.7.0` (MIT, zero dependencies) with `@types/papaparse@5.5.2`.
+- **CSV dialect:** case-insensitive header aliases — name / full name / display name / contact
+  name, first name + last name, any `phone…` / `mobile…` / `tel…` / `cell…` column,
+  `email…` / `e-mail…` column, notes; delimiter auto-detected (comma/semicolon/tab); multi-value
+  cells split on `;`. A recognized name column (or first/last) is required.
+
+Both parsers return `{ contacts, skipped }`: malformed records never throw — they are skipped
+with an index and a reason so an import can report them.
+
+**Rejected**
+
+- `vcard4@4.0.5` — parses only version 4.0 and fails on the 3.0/2.1 files phones actually export
+  (verified empirically).
+- `csv-parse@7.0.3` — Node-oriented, ~1.6 MB unpacked, more surface than the job needs.
+- Hand-rolled parsers for both — we would own the edge cases for no gain over MIT libraries that
+  tested correctly against real-world samples.
+- Header-less CSVs treated positionally — ambiguous; a recognized name column is required.
+
+**Confirmed by user:** 2026-10-02 (vcf + thin adapter; papaparse; aliases + auto-detect).

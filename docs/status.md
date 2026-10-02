@@ -9,31 +9,32 @@ rule 4. Keep exactly one phase `in progress`.
 |---|---|---|
 | 0 | Requirements + stack selection: fill `docs/product.md`, choose the stack, record D-001 | complete |
 | 1 | Scaffold: structure, checks, CI, release path — recorded in `docs/architecture.md` / `development.md` | complete — merged to `dev` in PR #1 |
-| 2 | Product: the core workflow, end to end | in progress — contact-graph schema landed (migration `0001`); import pipeline next |
+| 2 | Product: the core workflow, end to end | in progress — schema + file parsers landed; intake pipeline next |
 | 3 | Promo site: the site that explains it and sends people to it | not started |
 | 4 | Launch: first release tagged, site deployed | not started |
 
 ## Current handoff
 
-**Phase:** 2 — product core workflow; schema slice landed, next slice is the import pipeline.
+**Phase:** 2 — product core workflow; file parsers landed, next slice is the import intake
+pipeline.
 
-**Done this session:** pulled the merged `dev` (PR #1) and reviewed every doc against the repo;
-refreshed this tracker and the CI note in `docs/architecture.md`; settled the increment semantics
-with the user — exact identifier matches auto-link, non-conflicting values auto-apply with
-provenance, conflicts queue for review — and recorded them as D-006; implemented the contact-graph
-schema (identities, identity_values, observations, observation_identifiers, identity_links,
-conflicts, history_events, sources, imports, usage_operations) in `product/src/db/schema.ts`;
-generated migration `0001_pale_nightmare.sql`; added `product/test/schema.test.ts` (full-graph
-roundtrip, one-identity-per-observation, user-delete cascade across all ten tables).
+**Done this session:** recorded D-007 (parsers, formats, dependencies); added `vcf@2.1.2`,
+`papaparse@5.7.0`, and `@types/papaparse@5.5.2` to the product; implemented `parseVCard` (a thin
+adapter over `vcf`: QUOTED-PRINTABLE decoding, `tel:` URI stripping, TYPE→label mapping, text
+unescaping, UID as `externalId`, FN → N fallback) and `parseCsv` (papaparse with case-insensitive
+header aliases, delimiter auto-detect, `;`-separated multi-value cells); both return
+`{ contacts, skipped }` — malformed records are reported, never thrown; 14 parser tests; refreshed
+the domain row in `docs/architecture.md`.
 
-**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (50 files),
-Vitest 10/10 (api + normalize + schema), product/extension/site builds all green.
+**Verified:** `pnpm check` exit 0 — typecheck for all four packages, Biome clean (56 files),
+Vitest 24/24 (api + normalize + schema + vCard + CSV), product/extension/site builds all green.
 
 **Blocked by:** nothing. Known open item: the release path is still unproven until the first
 tagged release.
 
-**Next action:** after this PR merges, start the import pipeline slice with the vCard/CSV parsers
-(pure `product/src/domain` functions producing `NormalizedContact`, fully tested).
+**Next action:** implement the import intake slice — an authenticated upload endpoint that stores
+the raw payload in `IMPORTS_BUCKET` (R2), creates the `sources`/`imports` rows, and enqueues to
+`IMPORTS_QUEUE`; then the consumer that turns observations into identities, links, and conflicts.
 
 ---
 
