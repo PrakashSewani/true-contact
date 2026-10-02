@@ -14,10 +14,6 @@ interface StoredSession {
 }
 
 export default defineBackground(() => {
-  browser.runtime.onInstalled.addListener(() => {
-    console.log('TrueContact connector installed.');
-  });
-
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const request = message as PopupMessage;
 
