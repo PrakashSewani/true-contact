@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- Chrome Web Store prep: extension icon set, a popup that locks the pairing URL once connected and
+  offers Disconnect, a notice (and disabled scan) when opened outside WhatsApp Web, a site privacy
+  policy page, extension install links on the site and the app's Imports page, and the store
+  listing copy (`docs/extension-store-listing.md`).
+
 ### Changed
 
 - Worker names in the repo configs now match the deployed Workers (`true-contact`,

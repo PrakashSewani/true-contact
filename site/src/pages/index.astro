@@ -1,6 +1,6 @@
 ---
 import { BRAND } from '@truecontact/shared';
-import { APP_URL } from '../config';
+import { APP_URL, EXTENSION_URL } from '../config';
 import Layout from '../layouts/Layout.astro';
 
 const steps = [
@@ -239,6 +239,9 @@ const faqs = [
             No passwords, no OTPs, no session takeover. If WhatsApp changes tomorrow, your book
             stays: sources come and go, the identity graph is yours.
           </p>
+          <p class="section-cta">
+            <a class="button button-secondary" href={EXTENSION_URL}>Add the connector to Chrome</a>
+          </p>
         </div>
         <div class="pair">
           <p class="pair-label">Pairing code</p>
@@ -296,6 +299,8 @@ const faqs = [
         <a href="#how">How it works</a>
         <a href="#privacy">Privacy</a>
         <a href="#faq">FAQ</a>
+        <a href={EXTENSION_URL}>Get the extension</a>
+        <a href="/privacy">Privacy policy</a>
         <a href={APP_URL}>Open TrueContact</a>
       </nav>
       <p class="foot-note">Contact data is never sold or used for advertising.</p>

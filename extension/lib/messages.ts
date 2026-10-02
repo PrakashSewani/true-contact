@@ -39,6 +39,14 @@ export interface CaptureCommand {
   type: 'capture';
 }
 
+export interface PingCommand {
+  type: 'ping';
+}
+
+export interface PongResult {
+  ok: true;
+}
+
 export interface BulkEntry {
   id: string;
   name: string | null;

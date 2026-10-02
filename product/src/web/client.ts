@@ -91,6 +91,9 @@ export interface ImportJob {
   status: string;
   stats: ImportStats | null;
   error: string | null;
+  cursor: number;
+  total: number;
+  progressAt: string | null;
   createdAt: string;
   finishedAt: string | null;
 }
@@ -157,6 +160,8 @@ export const api = {
     }),
   createImport: (fileName: string, content: string) =>
     request<{ import: ImportJob }>('/api/imports', { method: 'POST', body: { fileName, content } }),
+  resumeImport: (id: string) =>
+    request<{ import: ImportJob }>(`/api/imports/${id}/resume`, { method: 'POST', body: {} }),
   confirmLink: (id: string) => request(`/api/links/${id}/confirm`, { method: 'POST', body: {} }),
   rejectLink: (id: string) => request(`/api/links/${id}/reject`, { method: 'POST', body: {} }),
   resolveConflict: (id: string, resolution: string, value?: string) =>

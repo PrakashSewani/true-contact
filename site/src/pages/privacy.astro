@@ -1,0 +1,76 @@
+---
+import { BRAND } from '@truecontact/shared';
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title={`Privacy policy — ${BRAND.name}`}
+  description="What TrueContact and its WhatsApp connector do with your data."
+>
+  <main class="wrap narrow section">
+    <p class="kicker">Privacy policy</p>
+    <h1>Your data stays yours.</h1>
+    <p class="section-lede">
+      {BRAND.name} is a personal contact book that gathers observations from the sources you
+      connect — a WhatsApp connector and vCard/CSV files you choose to import. This page explains
+      exactly what is stored and where it goes.
+    </p>
+
+    <h2>What TrueContact stores</h2>
+    <ul class="ticks ticks--yes">
+      <li>Your account details: email address and name.</li>
+      <li>
+        The contacts you import — names, phone numbers, emails, and notes — together with the
+        history of what changed and which source it came from.
+      </li>
+      <li>
+        Import files are kept only while an import is processed; the durable record is your
+        contact graph and its history.
+      </li>
+    </ul>
+
+    <h2>The WhatsApp connector</h2>
+    <ul class="ticks ticks--yes">
+      <li>
+        It reads contact information WhatsApp Web already displays (names, chat identifiers, and
+        phone numbers where WhatsApp shows them) and sends it to <em>your</em> {BRAND.name}
+        account over HTTPS.
+      </li>
+      <li>
+        It never asks for, sees, or stores your WhatsApp password, OTPs, or session secrets, and
+        it does not read your messages.
+      </li>
+      <li>
+        It stores a {BRAND.name}-issued pairing token in your browser so it can push updates; you
+        can disconnect it at any time from the extension.
+      </li>
+    </ul>
+
+    <h2>What we never do</h2>
+    <ul class="ticks ticks--no">
+      <li>Sell your contact data or use it for advertising.</li>
+      <li>Hand your data to third parties — it lives on our hosting provider and nowhere else.</li>
+      <li>Change your canonical contacts without your explicit decision in the app.</li>
+    </ul>
+
+    <h2>Export and deletion</h2>
+    <p class="muted">
+      You can export your whole contact book as vCard or CSV at any time, and you can ask for your
+      account and data to be deleted by opening an issue in the project repository.
+    </p>
+
+    <h2>Cookies</h2>
+    <p class="muted">
+      The web app uses a single session cookie so you stay signed in. There are no analytics,
+      tracking, or advertising cookies.
+    </p>
+
+    <h2>Contact</h2>
+    <p class="muted">
+      Questions or deletion requests: open an issue at
+      <a href="https://github.com/PrakashSewani/true-contact/issues">
+        github.com/PrakashSewani/true-contact
+      </a>.
+    </p>
+  </main>
+</Layout>

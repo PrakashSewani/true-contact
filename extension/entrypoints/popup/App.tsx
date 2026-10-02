@@ -2,10 +2,13 @@ import { BRAND } from '@truecontact/shared';
 import { useEffect, useState } from 'react';
 import type { PairResult, ScanResult, StatusResult } from '../../lib/messages';
 
+const DEFAULT_API_BASE = 'https://app.truecontact.prakashsewani.com';
+
 export function App() {
-  const [apiBase, setApiBase] = useState('http://localhost:8787');
+  const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
   const [code, setCode] = useState('');
   const [status, setStatus] = useState<StatusResult | null>(null);
+  const [onWhatsApp, setOnWhatsApp] = useState<boolean | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,8 +22,24 @@ export function App() {
 
       const result = (await browser.runtime.sendMessage({ type: 'status' })) as StatusResult;
       setStatus(result);
+
+      const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+      let reachable = false;
+
+      if (tab?.id !== undefined) {
+        try {
+          await browser.tabs.sendMessage(tab.id, { type: 'ping' });
+          reachable = true;
+        } catch {
+          reachable = false;
+        }
+      }
+
+      setOnWhatsApp(reachable);
     })();
   }, []);
+
+  const paired = status?.paired ?? false;
 
   async function handlePair() {
     setBusy(true);
@@ -63,6 +82,13 @@ export function App() {
     setMessage(`Pushed ${result.pushed ?? 0} contacts to TrueContact.`);
   }
 
+  async function handleDisconnect() {
+    await browser.storage.local.remove('session');
+    setStatus({ paired: false });
+    setMessage('Disconnected. Pair again with a new code.');
+    setError(null);
+  }
+
   return (
     <main>
       <h1>{BRAND.name}</h1>
@@ -70,34 +96,50 @@ export function App() {
         Import contacts from WhatsApp Web. This connector never asks for your WhatsApp credentials.
       </p>
 
-      <label>
-        TrueContact URL
-        <input value={apiBase} onChange={(event) => setApiBase(event.target.value)} />
-      </label>
+      {onWhatsApp === false && (
+        <p className="notice">
+          Open <strong>web.whatsapp.com</strong> with your chat list visible, then scan. If you just
+          installed or updated the extension, reload the WhatsApp tab first.
+        </p>
+      )}
 
       <label>
-        Pairing code
+        TrueContact URL
         <input
-          value={code}
-          maxLength={8}
-          placeholder="XXXXXXXX"
-          onChange={(event) => setCode(event.target.value.toUpperCase())}
+          value={apiBase}
+          disabled={paired}
+          onChange={(event) => setApiBase(event.target.value)}
         />
       </label>
 
-      <button type="button" disabled={busy || code.trim().length < 8} onClick={handlePair}>
-        Pair with TrueContact
-      </button>
+      {paired ? (
+        <>
+          <p className="muted">Paired{status?.extensionId ? ` (${status.extensionId})` : ''}.</p>
+          <button type="button" disabled={busy} onClick={handleDisconnect}>
+            Disconnect
+          </button>
+        </>
+      ) : (
+        <>
+          <label>
+            Pairing code
+            <input
+              value={code}
+              maxLength={8}
+              placeholder="XXXXXXXX"
+              onChange={(event) => setCode(event.target.value.toUpperCase())}
+            />
+          </label>
+          <button type="button" disabled={busy || code.trim().length < 8} onClick={handlePair}>
+            Pair with TrueContact
+          </button>
+          <p className="muted">Generate a code on the TrueContact Imports page.</p>
+        </>
+      )}
 
-      <button type="button" disabled={busy || !status?.paired} onClick={handleScan}>
+      <button type="button" disabled={busy || !paired || onWhatsApp === false} onClick={handleScan}>
         Scan WhatsApp contacts
       </button>
-
-      <p className="muted">
-        {status?.paired
-          ? `Paired${status.extensionId ? ` (${status.extensionId})` : ''}`
-          : 'Not paired yet — generate a code on the TrueContact Imports page.'}
-      </p>
 
       {message && <p className="ok">{message}</p>}
       {error && <p className="error-text">{error}</p>}

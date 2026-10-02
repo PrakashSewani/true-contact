@@ -55,6 +55,9 @@ version-bump commit — deploying identical code.
 - Build logs, retries, and rollbacks: Worker → **Deployments** → **Build History**.
 - Preview builds stay off per Worker (**Settings** → **Build** → **Branch control** →
   **Enable Preview Builds** unchecked), so only `main` pushes build.
+- Once the Chrome Web Store listing is live, add `PUBLIC_EXTENSION_URL` (site) and
+  `VITE_EXTENSION_URL` (product) build variables so the site and app link straight to the
+  listing; without them both fall back to a store search.
 - Install is explicit because the builds run inside a pnpm workspace subdirectory; Node uses the
   build image default (24.x, satisfies `engines >=22`).
 

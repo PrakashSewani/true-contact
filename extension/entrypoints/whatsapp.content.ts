@@ -1,12 +1,19 @@
-import type { BulkEntry, CaptureDiagnostics, CaptureResult } from '../lib/messages';
+import type { BulkEntry, CaptureDiagnostics, CaptureResult, PongResult } from '../lib/messages';
 
 export default defineContentScript({
   matches: ['https://web.whatsapp.com/*'],
   runAt: 'document_idle',
   main() {
     browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-      if ((message as { type?: string } | undefined)?.type === 'capture') {
+      const type = (message as { type?: string } | undefined)?.type;
+
+      if (type === 'capture') {
         void captureContacts().then(sendResponse);
+        return true;
+      }
+
+      if (type === 'ping') {
+        sendResponse({ ok: true } satisfies PongResult);
         return true;
       }
 
