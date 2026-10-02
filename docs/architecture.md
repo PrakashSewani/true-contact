@@ -112,3 +112,15 @@ the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
 - `main` ruleset `main-protection`: require a pull request (0 approvals), no force pushes,
   no deletions; deploy keys bypass (used by the release workflow).
 - Deploy key `truecontact-release` (write access); Actions secret `RELEASE_DEPLOY_KEY`.
+
+## Production hostnames (D-015)
+
+- Product app: `app.truecontact.prakashsewani.com` → Worker `truecontact` (Custom Domain route
+  in `product/wrangler.jsonc`).
+- Promo site: `truecontact.prakashsewani.com` → Worker `truecontact-site` (Custom Domain route
+  in `site/wrangler.jsonc`).
+- The WhatsApp extension's `host_permissions` include the app origin; the `*.workers.dev`
+  hostnames remain a smoke-test fallback.
+
+Custom Domains create their DNS records and certificates automatically when the Worker first
+deploys.

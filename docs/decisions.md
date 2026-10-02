@@ -362,8 +362,7 @@ and shares only brand constants from `shared/` (D-001 dependency rule).
   outgrows it.
 - Client-side interactivity — nothing on the page requires it; static stays fast and robust.
 
-**Confirmed by user:** pending — phase-3 stack review (this entry lands with the site build and
-the `docs/product.md` section it records).
+**Confirmed by user:** 2026-10-02 (phase-3 stack reviewed and merged — PRs #14–#18).
 
 ## D-015: Production hostnames (prakashsewani.com)
 
