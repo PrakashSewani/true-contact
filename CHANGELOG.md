@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- Data deletion: "Delete all data" on the Imports page clears contacts, imports, and history for
+  the signed-in account (usage counters stay, since they track the free-tier limit).
+
 ## [1.1.0] - 2026-10-02
 
 ### Added

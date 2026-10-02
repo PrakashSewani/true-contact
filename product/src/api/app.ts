@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { membershipFor } from './access';
+import { accountRoutes } from './account';
 import { actionRoutes } from './actions';
 import { adminRoutes } from './admin';
 import { createAuth } from './auth';
@@ -72,6 +73,7 @@ export function createApp() {
   app.route('/', pairingRoutes);
   app.route('/', extensionRoutes);
   app.route('/', adminRoutes);
+  app.route('/', accountRoutes);
 
   return app;
 }

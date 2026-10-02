@@ -184,4 +184,9 @@ export const api = {
     request(`/api/admin/users/${id}/approve`, { method: 'POST', body: {} }),
   rejectUser: (id: string) =>
     request(`/api/admin/users/${id}/reject`, { method: 'POST', body: {} }),
+  deleteAllData: () =>
+    request<{ ok: boolean; deletedContacts: number }>('/api/account/delete-data', {
+      method: 'POST',
+      body: { confirm: true },
+    }),
 };
