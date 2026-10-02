@@ -284,3 +284,23 @@ appends a user-actor history event):
   `value_changed` / `value_added` / `value_removed` with actor `user`.
 
 **Confirmed by user:** 2026-10-02 (review-loop requirements in `docs/product.md`; D-004/D-006).
+
+## D-011: WhatsApp extension pairing and token authentication
+
+**Date:** 2026-10-02
+
+**Decision:** The extension pairs through TrueContact-issued codes and pushes batches with a
+bearer token — WhatsApp credentials never exist anywhere in the flow:
+
+- `POST /api/pairing/start` (web session) creates an 8-character code from an unambiguous
+  alphabet, valid for 10 minutes, shown in the web UI.
+- `POST /api/pairing/exchange` (extension) takes `{ code, extensionId }` and returns a bearer
+  token (`tc_…`, 30-day TTL); pairing codes are single-use. Only the token's SHA-256 hash is
+  stored.
+- `POST /api/imports/extension` (bearer token) accepts the shared `importBatchSchema` payload
+  (`source: whatsapp` + normalized contacts), stores it exactly like any other intake, and
+  enqueues it; the consumer passes WhatsApp batches through the shared contract instead of a
+  file parser.
+- Tokens are revocable by deleting the row; `last_used_at` updates on every push.
+
+**Confirmed by user:** 2026-10-02 (v1 scope D-004; pairing contract in `shared/src/pairing.ts`).

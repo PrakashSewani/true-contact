@@ -325,6 +325,11 @@ a.button-secondary {
   font-size: 0.875rem;
 }
 
+.pairing-code {
+  font-size: 1.5rem;
+  letter-spacing: 0.25em;
+}
+
 .empty-state {
   background: var(--surface);
   border: 1px solid var(--border);

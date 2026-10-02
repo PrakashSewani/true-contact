@@ -125,6 +125,11 @@ export const api = {
   review: () =>
     request<{ conflicts: ReviewConflict[]; proposals: ReviewProposal[] }>('/api/review'),
   imports: () => request<{ imports: ImportJob[] }>('/api/imports'),
+  startPairing: () =>
+    request<{ pairing: { code: string; expiresAt: string } }>('/api/pairing/start', {
+      method: 'POST',
+      body: {},
+    }),
   createImport: (fileName: string, content: string) =>
     request<{ import: ImportJob }>('/api/imports', { method: 'POST', body: { fileName, content } }),
   confirmLink: (id: string) => request(`/api/links/${id}/confirm`, { method: 'POST', body: {} }),

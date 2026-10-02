@@ -1,4 +1,5 @@
 import type { NormalizedContact } from '@truecontact/shared';
+import { importBatchSchema } from '@truecontact/shared';
 import { and, eq, inArray, or, type SQL } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../db/schema';
@@ -66,8 +67,22 @@ async function runImport(env: Env, db: Db, job: ImportRow): Promise<void> {
 
   const observedAt = job.createdAt.toISOString();
   const text = await raw.text();
-  const parsed =
-    source.kind === 'csv' ? parseCsv(text, { observedAt }) : parseVCard(text, { observedAt });
+
+  let contacts: NormalizedContact[];
+  let skipped = 0;
+
+  if (source.kind === 'whatsapp') {
+    const batch = importBatchSchema.safeParse(JSON.parse(text));
+    if (!batch.success) {
+      throw new Error('invalid whatsapp batch payload');
+    }
+    contacts = batch.data.contacts;
+  } else {
+    const parsed =
+      source.kind === 'csv' ? parseCsv(text, { observedAt }) : parseVCard(text, { observedAt });
+    contacts = parsed.contacts;
+    skipped = parsed.skipped.length;
+  }
 
   const identityRows = await db
     .select({
@@ -96,7 +111,7 @@ async function runImport(env: Env, db: Db, job: ImportRow): Promise<void> {
   let proposed = 0;
   let conflicts = 0;
 
-  for (const contact of parsed.contacts) {
+  for (const contact of contacts) {
     const observationId = await recordObservation(context, contact);
     const outcome = await reconcileContact(context, contact, observationId);
 
@@ -111,12 +126,12 @@ async function runImport(env: Env, db: Db, job: ImportRow): Promise<void> {
   }
 
   const stats: schema.ImportStats = {
-    contacts: parsed.contacts.length,
+    contacts: contacts.length,
     created,
     linked,
     proposed,
     conflicts,
-    skipped: parsed.skipped.length,
+    skipped,
   };
 
   const now = new Date();
@@ -129,12 +144,12 @@ async function runImport(env: Env, db: Db, job: ImportRow): Promise<void> {
     .set({ status: 'complete', stats, finishedAt: now })
     .where(eq(schema.imports.id, job.id));
 
-  if (parsed.contacts.length > 0) {
+  if (contacts.length > 0) {
     await db.insert(schema.usageOperations).values({
       id: crypto.randomUUID(),
       userId: job.userId,
       kind: 'imported_contact',
-      quantity: parsed.contacts.length,
+      quantity: contacts.length,
       createdAt: now,
     });
   }

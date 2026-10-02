@@ -330,3 +330,34 @@ export const usageOperations = sqliteTable(
   },
   (table) => [index('usage_operations_user_id_created_at_idx').on(table.userId, table.createdAt)],
 );
+
+export const pairingCodes = sqliteTable(
+  'pairing_codes',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    code: text('code').notNull().unique(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+    usedAt: integer('used_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [index('pairing_codes_user_id_idx').on(table.userId)],
+);
+
+export const extensionTokens = sqliteTable(
+  'extension_tokens',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    extensionId: text('extension_id').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+    lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [index('extension_tokens_user_id_idx').on(table.userId)],
+);

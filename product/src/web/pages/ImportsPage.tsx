@@ -7,6 +7,9 @@ export function ImportsPage() {
   const [imports, setImports] = useState<ImportJob[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pairing, setPairing] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [pairingBusy, setPairingBusy] = useState(false);
+  const [pairingError, setPairingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +67,20 @@ export function ImportsPage() {
     }
   }
 
+  async function handlePairing() {
+    setPairingBusy(true);
+    setPairingError(null);
+
+    try {
+      const data = await api.startPairing();
+      setPairing(data.pairing);
+    } catch (cause) {
+      setPairingError(errorMessage(cause));
+    } finally {
+      setPairingBusy(false);
+    }
+  }
+
   return (
     <section className="section">
       <div className="section-header">
@@ -92,6 +109,32 @@ export function ImportsPage() {
           disabled={busy}
           onChange={handleUpload}
         />
+      </div>
+
+      <div className="panel">
+        <h2>Connect WhatsApp</h2>
+        <p className="muted">
+          Open the TrueContact browser extension on WhatsApp Web and enter this pairing code within
+          10 minutes.
+        </p>
+        {pairingError && <p className="error">{pairingError}</p>}
+        {pairing ? (
+          <p>
+            <strong className="pairing-code">{pairing.code}</strong>{' '}
+            <span className="muted">
+              expires {new Date(pairing.expiresAt).toLocaleTimeString()}
+            </span>
+          </p>
+        ) : (
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={pairingBusy}
+            onClick={handlePairing}
+          >
+            Generate pairing code
+          </button>
+        )}
       </div>
 
       {imports === null ? (

@@ -2,7 +2,8 @@ import { and, desc, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
 import * as schema from '../db/schema';
-import { detectImportKind, MAX_IMPORT_LENGTH, rawImportKey } from '../domain/imports';
+import { detectImportKind, MAX_IMPORT_LENGTH } from '../domain/imports';
+import { queueImport } from '../imports/intake';
 import { getSessionUser } from './session';
 
 export const importRoutes = new Hono<{ Bindings: Env }>();
@@ -39,32 +40,13 @@ importRoutes.post('/api/imports', async (c) => {
     return c.json({ error: 'unsupported file type; expected vCard (.vcf) or CSV (.csv)' }, 400);
   }
 
-  const db = drizzle(c.env.DB, { schema });
-  const now = new Date();
-  const sourceId = crypto.randomUUID();
-  const importId = crypto.randomUUID();
-  const rawKey = rawImportKey(user.id, importId);
   const label = fileName.trim();
-
-  await c.env.IMPORTS_BUCKET.put(rawKey, content);
-  await db.insert(schema.sources).values({
-    id: sourceId,
+  const { importId } = await queueImport(c.env, {
     userId: user.id,
     kind,
-    label,
-    createdAt: now,
-    updatedAt: now,
-  });
-  await db.insert(schema.imports).values({
-    id: importId,
-    userId: user.id,
-    sourceId,
-    status: 'pending',
-    rawKey,
     fileName: label,
-    createdAt: now,
+    content,
   });
-  await c.env.IMPORTS_QUEUE.send({ importId });
 
   return c.json({ import: { id: importId, kind, fileName: label, status: 'pending' } }, 201);
 });

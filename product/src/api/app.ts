@@ -3,7 +3,9 @@ import { actionRoutes } from './actions';
 import { createAuth } from './auth';
 import { contactRoutes } from './contacts';
 import { exportRoutes } from './export';
+import { extensionRoutes } from './extension';
 import { importRoutes } from './imports';
+import { pairingRoutes } from './pairing';
 import { getSessionUser } from './session';
 
 export function createApp() {
@@ -29,6 +31,8 @@ export function createApp() {
   app.route('/', contactRoutes);
   app.route('/', actionRoutes);
   app.route('/', exportRoutes);
+  app.route('/', pairingRoutes);
+  app.route('/', extensionRoutes);
 
   return app;
 }
