@@ -30,6 +30,10 @@ export default defineContentScript({
       }
 
       try {
+        wppContactCount = 0;
+        wppDedupedCount = 0;
+        wppFilteredCount = 0;
+
         const wppEntries = await captureWppEntries();
         const usingWpp = wppEntries.length > 0;
         // When WA-JS answers, push exactly the address book — the DOM/chat-list capture is
@@ -113,6 +117,10 @@ interface WppPnLidEntry {
 
 interface WppLike {
   isReady?: boolean;
+  conn?: {
+    getMyUserWid?: () => unknown;
+    getMyUserLid?: () => unknown;
+  };
   contact?: {
     list?: (options?: { onlyMyContacts?: boolean }) => Promise<WppContactModel[]>;
     getPnLidEntry?: (contactId: string | WppWid) => Promise<WppPnLidEntry>;
@@ -133,6 +141,31 @@ async function waitForWpp(client: WppLike): Promise<void> {
 
 let wppContactCount = 0;
 let wppDedupedCount = 0;
+let wppFilteredCount = 0;
+
+// Meta AI's WhatsApp number is a fixed, globally used value; it is not a person in the address book.
+const META_AI_ID = '13135550002@c.us';
+
+function ownContactIds(client: WppLike): Set<string> {
+  const ids = new Set<string>();
+
+  for (const getter of [client.conn?.getMyUserWid, client.conn?.getMyUserLid]) {
+    if (!getter) {
+      continue;
+    }
+
+    try {
+      const id = parseJid(jidString(getter.call(client.conn)) ?? '');
+      if (id) {
+        ids.add(id);
+      }
+    } catch {
+      // older WhatsApp builds may not expose the user id; self would just import once
+    }
+  }
+
+  return ids;
+}
 
 async function captureWppEntries(): Promise<BulkEntry[]> {
   const client = wpp();
@@ -157,12 +190,20 @@ async function captureWppEntries(): Promise<BulkEntry[]> {
 
   wppContactCount = contacts.length;
 
+  const skipIds = ownContactIds(client);
+  skipIds.add(META_AI_ID);
+
   const entries = new Map<string, BulkEntry>();
 
   for (const contact of contacts.slice(0, 3000)) {
     try {
       const id = parseJid(jidString(contact.id) ?? '');
       if (!id) {
+        continue;
+      }
+
+      if (skipIds.has(id)) {
+        wppFilteredCount += 1;
         continue;
       }
 
@@ -278,6 +319,7 @@ function debugCapture(rows: RowCapture[], bulk: BulkEntry[]): void {
         ? { present: true, ready: safeReady(client), contacts: wppContactCount }
         : { present: false },
       dedupedByPhone: wppDedupedCount,
+      filteredOut: wppFilteredCount,
       rowSample: rows.slice(0, 4),
       bulkSample: bulk.slice(0, 4).map((entry) => ({ id: entry.id, phone: entry.phone })),
       trace: traceFirstRow(),
