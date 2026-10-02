@@ -15,8 +15,8 @@ rule 4. Keep exactly one phase `in progress`.
 
 ## Current handoff
 
-**Phase:** post-launch iteration — **v1.2.1 released** (tag + GitHub release published; Workers
-Builds deploy `true-contact` / `true-contact-site` from `main`).
+**Phase:** post-launch iteration — **v1.2.2 released** (tag + GitHub release published; the promo
+site's closed-beta copy redeploys through Workers Builds).
 
 **Done since v1.0.0:** chunked/resumable imports (D-018); personal-only access with admin
 approvals (D-019); store prep — connector icons + popup UX, privacy page, listing copy; phone
@@ -29,13 +29,15 @@ public launch).
 
 **Verified (2026-10-02):** live `/api/health` ok; a real session scan pushed **493 unique
 contacts** (every externalId `@c.us`, no duplicates, Meta AI and self absent); `pnpm check` green
-on `dev`; the `v1.2.1` release workflow completed green and `main` is at `1.2.1`; the built site
-HTML carries the brand theme (`#2f6f4f` / `#6fbf94` dark) with zero hydration.
+on `dev`; the `v1.2.2` release workflow completed green and `main` is at `1.2.2`; the built site
+HTML carries the brand theme (`#2f6f4f` / `#6fbf94` dark) with zero hydration, and the
+closed-beta copy (no Chrome links, apply-for-access CTAs).
 
 **Blocked by:** nothing.
 
-**Next action:** land the closed-beta site copy (`site/closed-beta-copy`) and ship it with the
-next release; the public launch then publishes the extension store listing.
+**Next action:** confirm the redeployed promo site shows the closed-beta copy (Workers Builds);
+then the shipping backlog — the public launch publishes the extension with the app, and rate
+limiting + pricing get designed for the public stage.
 
 ---
 
