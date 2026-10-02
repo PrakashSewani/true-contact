@@ -1,3 +1,4 @@
+import { Button } from '@truecontact/ui';
 import type { ChangeEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { api, errorMessage, type ImportJob } from '../client';
@@ -125,13 +126,9 @@ export function ImportsPage() {
       <div className="section-header">
         <h1>Imports</h1>
         <div className="toolbar">
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => setVersion((value) => value + 1)}
-          >
+          <Button variant="outlined" size="small" onClick={() => setVersion((value) => value + 1)}>
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -178,14 +175,9 @@ export function ImportsPage() {
             </span>
           </p>
         ) : (
-          <button
-            type="button"
-            className="button-secondary"
-            disabled={pairingBusy}
-            onClick={handlePairing}
-          >
+          <Button variant="contained" disabled={pairingBusy} onClick={handlePairing}>
             Generate pairing code
-          </button>
+          </Button>
         )}
       </div>
 
@@ -220,14 +212,14 @@ export function ImportsPage() {
                   {stalled ? 'paused' : job.status}
                 </span>
                 {stalled && (
-                  <button
-                    type="button"
-                    className="button-secondary"
+                  <Button
+                    variant="outlined"
+                    size="small"
                     disabled={busyId === job.id}
                     onClick={() => void handleResume(job.id)}
                   >
                     Resume processing
-                  </button>
+                  </Button>
                 )}
                 {job.error && <p className="error">{job.error}</p>}
               </li>
@@ -242,14 +234,15 @@ export function ImportsPage() {
           Delete all contacts, imports, and history from your account. This cannot be undone. Your
           usage counter stays — it keeps a running total.
         </p>
-        <button
-          type="button"
-          className="button-secondary"
+        <Button
+          variant="outlined"
+          color="error"
+          size="small"
           disabled={busyId === 'delete-all'}
           onClick={() => void handleDeleteAll()}
         >
           Delete all data
-        </button>
+        </Button>
       </div>
     </section>
   );

@@ -1,4 +1,5 @@
 import { BRAND } from '@truecontact/shared';
+import { Button } from '@truecontact/ui';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAccess } from '../access';
 import { authClient } from '../auth-client';
@@ -37,9 +38,9 @@ export function AppLayout() {
         </div>
         <div className="topbar-right">
           <span className="muted">{session?.user.email}</span>
-          <button type="button" className="button-secondary" onClick={handleSignOut}>
+          <Button variant="outlined" size="small" onClick={handleSignOut}>
             Sign out
-          </button>
+          </Button>
         </div>
       </header>
       <main className="content">

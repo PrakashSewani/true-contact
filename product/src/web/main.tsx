@@ -1,3 +1,5 @@
+import { CssBaseline } from '@mui/material';
+import { TrueContactThemeProvider } from '@truecontact/ui';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
@@ -11,6 +13,9 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <TrueContactThemeProvider>
+      <CssBaseline />
+      <App />
+    </TrueContactThemeProvider>
   </StrictMode>,
 );
