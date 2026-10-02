@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "truecontact",
+  "main": "src/api/index.ts",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist/web",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "truecontact",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "IMPORTS_BUCKET",
+      "bucket_name": "truecontact-imports"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "IMPORTS_QUEUE",
+        "queue": "truecontact-imports"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "truecontact-imports",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3
+      }
+    ]
+  }
+}

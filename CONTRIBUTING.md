@@ -4,9 +4,8 @@ Thanks for wanting to help. This project is small on purpose — please keep it 
 
 ## Setup
 
-The stack is chosen when the project starts; the commands that actually work live in
-[docs/development.md](./docs/development.md). If that file is still empty, the project has not
-been scaffolded yet — see the `project-bootstrap` skill.
+Prerequisites, setup, and every command live in [docs/development.md](./docs/development.md).
+The definition of done is `pnpm check`, which CI runs on every PR.
 
 ## Before you open a PR
 

@@ -1,50 +1,46 @@
-# Product + Promo Site
+# TrueContact
 
-One repository for a product **and its promo site** — the thing people use, and the site that
-explains it and sends them to it. No tech stack is baked in: the stack is chosen when the
-project's requirements are known.
-
-## Getting started
-
-1. **Create the repo** — "Use this template → Create a new repository" on GitHub, or locally:
-
-   ```powershell
-   .\scripts\new-project.ps1 -Template template-app-plus-site -Name my-product -Title "My Product"
-   ```
-
-   ```bash
-   bash scripts/new-project.sh template-app-plus-site my-product "My Product"
-   ```
-
-2. **Rename** (skip if you used the script above):
-
-   ```bash
-   node scripts/init.mjs --name my-product --title "My Product"
-   ```
-
-3. **Bootstrap it.** Open an AI session in the repo, describe your product in plain words, then
-   say *"bootstrap this project"*. The agent follows `AGENTS.md` and the `project-bootstrap`
-   skill: it asks the questions that matter, picks the smallest stack that fits, resolves current
-   package versions **live**, records the decision in `docs/`, and scaffolds the repo — product
-   and site side by side.
+A personal source of truth for your contacts. Contact information is scattered across phones,
+WhatsApp, cloud address books, and old exports — and those sources disagree with each other.
+TrueContact builds a canonical **Contact Identity** for each person, preserves the history of how
+it changed, and lets the user review and decide what their contact book should say.
 
 ## What's in here
 
-- `AGENTS.md` — the four rules, the PM/subagent model, and the no-stack-assumed workflow.
-- `docs/` — `product.md` (the brief), `architecture.md`, `decisions.md`, `status.md`,
-  `development.md`.
-- `.commandcode/agents/` — `implementer`, `verifier`, `docs-writer`.
-- `.commandcode/skills/` — `project-bootstrap` (choose + scaffold the stack), `ship-release`.
-- `scripts/init.mjs` — renames the template once; delete it after.
-- Branching policy — set `dev` as the GitHub default/integration branch; agent changes arrive
-   through PRs to `dev`, and labeled releases run from `main` only (see `docs/architecture.md`).
+| Path | What it is |
+|---|---|
+| `product/` | The web app — React SPA + Hono API in one Cloudflare Worker (D1, R2, Queues) |
+| `extension/` | The WhatsApp connector — Manifest V3 browser extension (WXT + React) |
+| `site/` | The promo site — static Astro output, deploys independently |
+| `shared/` | Contracts the packages share: normalized contact + pairing schemas, brand constants |
 
-## Why nothing is pinned
+## Docs
 
-Templates that ship a pinned stack go stale in weeks and force yesterday's tools onto today's
-project. This template ships the **shape** — one repo, product + site, docs-first, PM + subagents
-— and leaves the stack to be decided with you at project start, with versions resolved on that
-day. The version numbers in `examples/` (if present) are reference implementations, not advice.
+- [`docs/product.md`](./docs/product.md) — the brief: what this is, who it's for, non-goals, success criteria
+- [`docs/architecture.md`](./docs/architecture.md) — shape, components, data flow, invariants, repository settings
+- [`docs/development.md`](./docs/development.md) — prerequisites, setup, every command
+- [`docs/decisions.md`](./docs/decisions.md) — decision log (stack, scope, branching, release authentication)
+- [`docs/status.md`](./docs/status.md) — current phase and handoff
+
+## Quick start
+
+```bash
+pnpm install
+cp product/.dev.vars.example product/.dev.vars    # fill in a long random BETTER_AUTH_SECRET
+pnpm --filter @truecontact/product db:migrate:local
+pnpm --filter @truecontact/product build          # creates the SPA assets wrangler dev serves
+pnpm dev:product        # API on http://localhost:8787 (serves the built SPA)
+pnpm dev:product:web    # Vite dev server on http://localhost:5173 (proxies /api)
+```
+
+Run `pnpm check` before any PR — it is the definition of done (typecheck + lint + tests + build).
+
+## Contributing
+
+Work on a feature branch and open a PR targeting `dev`; `dev` is the default branch. Releases
+flow from a labeled `dev` → `main` PR: merging to `main` with exactly one
+`release:patch|minor|major` label bumps the version, tags, and publishes a GitHub release.
+Deployments are manual.
 
 ## License
 

@@ -1,26 +1,70 @@
 # Product
 
-> **Fill this in first.** This file is the brief the agent works from — the stack, structure, and
-> scope all follow from it. Write it with the agent: answer its questions in chat, let it update
-> this file before any code exists (AGENTS.md, rule 2).
-
 ## What it is
 
-One paragraph. What is it, in plain words? What does a user do with it?
+TrueContact is a personal source of truth for a user's contacts. Contact information is scattered
+across phones, messaging platforms, cloud address books, exports, and old devices — and those
+sources disagree with each other. TrueContact gathers observations from those sources, builds a
+**canonical Contact Identity** for each person, preserves the history of how that information
+changed over time, and lets the user decide what their canonical contact book should be.
+
+The core architectural principle: **the Contact Identity Graph is the product.** WhatsApp,
+phones, Google, and every other service are merely sources of observations; each one sits behind
+a source adapter so that adding, changing, or losing a source never requires rebuilding the core.
 
 ## Who it's for
 
-The people who will actually use it. One sentence, no personas.
+Anyone whose contact information lives in more than one place — phone address book, WhatsApp,
+Google Contacts, iCloud, old exports — and who wants one reliable, reviewable answer to "what is
+the right information for this person?"
 
 ## The problem it solves
 
-What they do today instead, and why that's worse.
+Contact management assumes one system is authoritative. In reality, every source drifts:
+
+- A contact exists in WhatsApp but not on the phone.
+- A contact exists on the phone but disappears from a later WhatsApp import.
+- The same person appears under different names, or multiple times.
+- Phone numbers change; new numbers and emails appear.
+- A contact is accidentally deleted or modified in one source.
+- A previously unknown contact appears months later.
+
+Today's alternatives are worse: they trust a single source, silently overwrite or merge records,
+keep no history, can't reconcile across sources, or require handing contact data to a vendor.
+TrueContact instead preserves observations from every source, reconciles them against the
+identity graph, and surfaces what changed, when, which source contained the change, and which
+information conflicts — with the user in control of every decision that alters canonical data.
 
 ## Non-goals
 
-What this is explicitly not — the things you'll say no to.
+- Not a CRM and not a team tool — this is personal contact infrastructure.
+- No source is the product. WhatsApp integration is one adapter, and the architecture must not
+  depend on WhatsApp-specific behavior, APIs, or policies.
+- TrueContact never requests or stores third-party credentials — no WhatsApp passwords, OTPs,
+  authentication secrets, or session credentials.
+- No silent destructive merges or overwrites. Suggestions are automated; decisions that change
+  canonical data require user authorization.
+- Contact data is never sold or used for advertising.
+- Not a messaging client — it manages contact information, not conversations.
+- **Explicitly out of v1:** device synchronization (writing contacts back to phones), payments
+  and billing (usage is tracked and free-tier limits are enforced, but no money changes hands),
+  and source adapters beyond WhatsApp, vCard, and CSV.
 
 ## Success looks like
 
-How you'll know it works: the one workflow that must feel right, and what "done" means for the
-first release.
+The one workflow that must feel right for the first release:
+
+1. A user creates an account, then imports contacts from WhatsApp (via the browser extension's
+   pairing flow) and/or a vCard/CSV file.
+2. TrueContact normalizes the import, matches it against the existing identity graph, and shows
+   what it found: new contacts, matches, duplicates, conflicts, and possible matches worth
+   reviewing.
+3. The user reviews a suggestion or conflict, confirms a merge (or splits an incorrect one), and
+   edits canonical information — each decision recorded in history.
+4. The user opens a contact and sees its story: when it first appeared, when it was last observed
+   in each source, what changed, and where sources disagree.
+5. The user exports the canonical contact book as vCard or CSV.
+
+"Done" for the first release means: both import paths work end to end, reconciliation produces
+reviewable output (never silent canonical changes), merge/split/history are usable, export works,
+the free-tier usage limit is enforced, and the repository's check command and CI are green.
