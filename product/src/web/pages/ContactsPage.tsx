@@ -64,6 +64,12 @@ export function ContactsPage() {
           <Link className="button-primary" to="/imports">
             Import
           </Link>
+          <a className="button-secondary" href="/api/export/vcard" download>
+            Export vCard
+          </a>
+          <a className="button-secondary" href="/api/export/csv" download>
+            Export CSV
+          </a>
         </div>
       </div>
 

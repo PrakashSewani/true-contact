@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { actionRoutes } from './actions';
 import { createAuth } from './auth';
 import { contactRoutes } from './contacts';
+import { exportRoutes } from './export';
 import { importRoutes } from './imports';
 import { getSessionUser } from './session';
 
@@ -27,6 +28,7 @@ export function createApp() {
   app.route('/', importRoutes);
   app.route('/', contactRoutes);
   app.route('/', actionRoutes);
+  app.route('/', exportRoutes);
 
   return app;
 }
