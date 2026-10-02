@@ -29,6 +29,10 @@ const steps = [
 
 const faqs = [
   {
+    q: 'How do I get in?',
+    a: 'TrueContact is in a closed, approval-based beta. Create an account and the owner approves new joiners by hand — you get access as soon as you are approved.',
+  },
+  {
     q: 'Does the WhatsApp connector need my WhatsApp password?',
     a: 'No. It never asks for passwords, OTPs, or session secrets. It reads the contact data WhatsApp Web already renders and pushes it to your account under a token you can revoke at any time.',
   },
@@ -80,7 +84,7 @@ const faqs = [
         component="a"
         href={APP_URL}
       >
-        Open TrueContact
+        Apply for the beta
       </ThemedButton>
     </div>
   </header>
@@ -89,7 +93,7 @@ const faqs = [
     <section class="hero" aria-labelledby="hero-title">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="kicker">Personal contact infrastructure</p>
+          <p class="kicker">Closed beta · approvals by hand</p>
           <h1 id="hero-title">Every source. One person. <em>Your call.</em></h1>
           <p class="lede">
             TrueContact gathers your contacts from WhatsApp, phones, and old exports, reconciles
@@ -98,7 +102,7 @@ const faqs = [
           </p>
           <div class="hero-actions">
             <ThemedButton variant="contained" component="a" href={APP_URL}>
-              Open TrueContact
+              Apply for the closed beta
             </ThemedButton>
             <ThemedButton variant="outlined" component="a" href="#how">
               See how it works
@@ -252,11 +256,27 @@ const faqs = [
             No passwords, no OTPs, no session takeover. If WhatsApp changes tomorrow, your book
             stays: sources come and go, the identity graph is yours.
           </p>
-          <p class="section-cta">
-            <ThemedButton variant="outlined" component="a" href={EXTENSION_URL}>
-              Add the connector to Chrome
-            </ThemedButton>
-          </p>
+          {
+            EXTENSION_URL ? (
+              <p class="section-cta">
+                <ThemedButton variant="outlined" component="a" href={EXTENSION_URL}>
+                  Add the connector to Chrome
+                </ThemedButton>
+              </p>
+            ) : (
+              <>
+                <p class="section-lede">
+                  The connector isn't in the Chrome Web Store yet — it ships with the public
+                  release, and closed-beta testers receive it directly.
+                </p>
+                <p class="section-cta">
+                  <ThemedButton variant="outlined" component="a" href={APP_URL}>
+                    Apply for the closed beta
+                  </ThemedButton>
+                </p>
+              </>
+            )
+          }
         </div>
         <div class="pair">
           <p class="pair-label">Pairing code</p>
@@ -274,15 +294,15 @@ const faqs = [
     <section class="section" id="pricing" aria-labelledby="pricing-title">
       <div class="wrap narrow">
         <p class="kicker">Pricing</p>
-        <h2 id="pricing-title">Free to start. Honest limits.</h2>
+        <h2 id="pricing-title">Free while it's in beta.</h2>
         <p class="section-lede">
-          v1 has no billing and asks for no card. The free tier caps lifetime imported contacts so
-          the service can stay small and sustainable while it is young. When that changes, it will
-          be a decision you make, not a surprise.
+          No billing, no import cap, and no card to start — the closed beta is about making the
+          core loop solid. When TrueContact opens to everyone, pricing will be something you
+          choose, not a surprise.
         </p>
         <p class="section-cta">
           <ThemedButton variant="contained" component="a" href={APP_URL}>
-            Open TrueContact
+            Apply for the closed beta
           </ThemedButton>
         </p>
       </div>
@@ -316,9 +336,9 @@ const faqs = [
         <a href="#how">How it works</a>
         <a href="#privacy">Privacy</a>
         <a href="#faq">FAQ</a>
-        <a href={EXTENSION_URL}>Get the extension</a>
         <a href="/privacy">Privacy policy</a>
-        <a href={APP_URL}>Open TrueContact</a>
+        <a href={APP_URL}>Apply for the beta</a>
+        {EXTENSION_URL && <a href={EXTENSION_URL}>Get the extension</a>}
       </nav>
       <p class="foot-note">
         Built by <a href={BRAND.repository}>{BRAND.author}</a>. Contact data is never sold or used
