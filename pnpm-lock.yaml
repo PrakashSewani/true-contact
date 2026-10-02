@@ -181,6 +181,9 @@ importers:
       '@truecontact/shared':
         specifier: workspace:*
         version: link:../shared
+      '@wppconnect/wa-js':
+        specifier: 4.6.1
+        version: 4.6.1
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -2055,6 +2058,10 @@ packages:
 
   '@webext-core/match-patterns@2.0.0':
     resolution: {integrity: sha512-EsyMMKfQuSE4rWCjP/TifwvUWlhC/OhiGn5OK3p9F0d57UmtLib0nzguzPKyxM1/kZV7SkE+jYXkE8gsdPRLmw==}
+
+  '@wppconnect/wa-js@4.6.1':
+    resolution: {integrity: sha512-vabRop+7EN2Ny0f6suB5jY9Gmrkclo2yvaaw4zinEH5UUNUiyb7cTnSuK0rknYUde4ElKSjpThJFV0J+220chA==}
+    engines: {whatsapp-web: '>=2.3000.1038792969-alpha'}
 
   '@wxt-dev/browser@0.3.4':
     resolution: {integrity: sha512-NhLuaIz0LBwudxexRN/siiUOvVvwXhvYH6zM2GARG7Ag5UEpgpQV556vi7nzWPwR2ayBHD97mlodqd5OiOMg4Q==}
@@ -5058,6 +5065,8 @@ snapshots:
       is-potential-custom-element-name: 1.0.1
 
   '@webext-core/match-patterns@2.0.0': {}
+
+  '@wppconnect/wa-js@4.6.1': {}
 
   '@wxt-dev/browser@0.3.4':
     dependencies:

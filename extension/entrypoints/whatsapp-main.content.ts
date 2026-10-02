@@ -1,3 +1,6 @@
+// Injects WhatsApp Web's own store utilities (Apache-2.0, WPPConnect/WA-JS). Runs only on
+// web.whatsapp.com and only reads contact data; no credentials or sessions are touched.
+import '@wppconnect/wa-js';
 import type { BulkEntry } from '../lib/messages';
 
 interface FiberLike {
@@ -16,7 +19,7 @@ export default defineContentScript({
   world: 'MAIN',
   runAt: 'document_idle',
   main() {
-    window.addEventListener('message', (event) => {
+    window.addEventListener('message', async (event) => {
       if (event.source !== window) {
         return;
       }
@@ -27,7 +30,8 @@ export default defineContentScript({
       }
 
       const rows = captureRows();
-      const bulk = captureBulk();
+      const wppEntries = await captureWppEntries();
+      const bulk = mergeBulkEntries(wppEntries, captureBulk());
       debugCapture(rows, bulk);
 
       window.postMessage(
@@ -69,6 +73,120 @@ function phoneField(value: unknown): string | null {
 
 const PHONE_KEYS = ['__x_phoneNumber', 'phoneNumber'];
 const RELATION_KEYS = ['contact', 'data', 'chat'];
+
+interface WppWid {
+  _serialized?: string;
+}
+
+interface WppContactModel {
+  id?: string | WppWid;
+  userid?: unknown;
+  pnForLid?: unknown;
+  name?: unknown;
+  pushname?: unknown;
+  shortName?: unknown;
+  formattedName?: unknown;
+  displayNameOrPnForLid?: unknown;
+}
+
+interface WppPnLidEntry {
+  phoneNumber?: WppWid;
+  contact?: { name?: string; shortName?: string; pushname?: string; verifiedName?: string };
+}
+
+interface WppLike {
+  isReady?: boolean;
+  contact?: {
+    list?: (options?: { onlyMyContacts?: boolean }) => Promise<WppContactModel[]>;
+    getPnLidEntry?: (contactId: string | WppWid) => Promise<WppPnLidEntry>;
+  };
+}
+
+function wpp(): WppLike | undefined {
+  return (window as unknown as { WPP?: WppLike }).WPP;
+}
+
+async function waitForWpp(client: WppLike): Promise<void> {
+  const deadline = Date.now() + 5000;
+
+  while (!client.isReady && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+
+async function captureWppEntries(): Promise<BulkEntry[]> {
+  const client = wpp();
+  const list = client?.contact?.list;
+
+  if (!client || !list || !client.contact) {
+    return [];
+  }
+
+  await waitForWpp(client);
+
+  let contacts: WppContactModel[] = [];
+  try {
+    contacts = await list.call(client.contact, { onlyMyContacts: false });
+  } catch {
+    return [];
+  }
+
+  const entries = new Map<string, BulkEntry>();
+
+  for (const contact of contacts.slice(0, 3000)) {
+    try {
+      const id = parseJid(jidString(contact.id) ?? '');
+      if (!id) {
+        continue;
+      }
+
+      let phone =
+        phoneField(id) ?? phoneField(contact.pnForLid) ?? phoneField(contact.userid) ?? null;
+
+      if (!phone && id.endsWith('@lid') && client.contact.getPnLidEntry) {
+        try {
+          const entry = await client.contact.getPnLidEntry(id);
+          phone = phoneField(entry.phoneNumber);
+        } catch {
+          // per-contact lookup can fail; the contact is still imported name-only
+        }
+      }
+
+      const name = pickName(contact) ?? pickName(contact.displayNameOrPnForLid);
+
+      if (!name && !phone) {
+        continue;
+      }
+
+      entries.set(id, { id, name, phone });
+    } catch {
+      // skip malformed contacts
+    }
+  }
+
+  return Array.from(entries.values());
+}
+
+function mergeBulkEntries(primary: BulkEntry[], secondary: BulkEntry[]): BulkEntry[] {
+  const merged = new Map<string, BulkEntry>();
+
+  for (const entry of [...primary, ...secondary]) {
+    const existing = merged.get(entry.id);
+
+    if (!existing) {
+      merged.set(entry.id, entry);
+      continue;
+    }
+
+    merged.set(entry.id, {
+      id: entry.id,
+      name: existing.name ?? entry.name,
+      phone: existing.phone ?? entry.phone,
+    });
+  }
+
+  return Array.from(merged.values());
+}
 
 function findPhone(value: unknown, depth: number): string | null {
   if (!value || typeof value !== 'object' || Array.isArray(value) || depth > 3) {

@@ -158,7 +158,7 @@ async function requestCapture(): Promise<PageCapture | null> {
     const timeout = window.setTimeout(() => {
       cleanup();
       resolve(null);
-    }, 2000);
+    }, 10000);
 
     const onMessage = (event: MessageEvent) => {
       if (event.source !== window) {

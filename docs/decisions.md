@@ -534,3 +534,30 @@ allowlist (no audit trail, awkward to change).
 
 **Confirmed by user:** 2026-10-02 ("personal only project… admin approves new joinings… free
 to the world once funded").
+
+## D-020: In-page WhatsApp capture via WA-JS for phone numbers
+
+**Date:** 2026-10-02
+
+**Decision:** The connector keeps its no-credentials posture but reads phone numbers through
+WhatsApp Web's own in-page store using **@wppconnect/wa-js 4.6.1** (Apache-2.0), bundled into the
+extension's main-world script:
+
+- On scan, the connector calls `WPP.contact.list()` and, for LID contacts without a number,
+  `WPP.contact.getPnLidEntry(id)` — WhatsApp's own LID→phone mapping. The existing DOM/React-state
+  capture remains as the fallback (names, and any numbers it can see).
+- Still no WhatsApp credentials, no QR/session login; nothing leaves the user's browser except the
+  push to their own account; message content is never read.
+- Trade-off accepted: coupling to WhatsApp Web internals (WA-JS tracks versions; if it breaks, the
+  connector still works — name-only — until updated).
+
+**Why:** live testing showed most chats arrive as `@lid` identifiers that carry no number in the
+DOM; the number lives in WhatsApp's contact store. Session-based libraries (Baileys,
+whatsapp-web.js, WAHA, Evolution) would require every user to hand over a WhatsApp session —
+breaking the product's core promise and, per 2026 reporting, putting users' own accounts at
+elevated ban risk. WA-JS runs against the session the user already has open, with no custody.
+
+**Supersedes:** D-012's "no access to WhatsApp's internal storage" clause — the store is read
+locally, in the user's own already-open browser session; everything else in D-012 stands.
+
+**Confirmed by user:** 2026-10-02 (chose the WA-JS upgrade over session-based libraries).
