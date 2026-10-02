@@ -1,4 +1,5 @@
 import type {
+  CaptureDiagnostics,
   CaptureResult,
   PairResult,
   PopupMessage,
@@ -82,24 +83,22 @@ async function scan(apiBase: string): Promise<ScanResult> {
   }
 
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  let contacts: CaptureResult['contacts'] = [];
+  let capture: CaptureResult | undefined;
 
   if (tab?.id !== undefined) {
     try {
-      const capture = (await browser.tabs.sendMessage(tab.id, {
-        type: 'capture',
-      })) as CaptureResult | undefined;
-      contacts = capture?.contacts ?? [];
+      capture = (await browser.tabs.sendMessage(tab.id, { type: 'capture' })) as
+        | CaptureResult
+        | undefined;
     } catch {
-      contacts = [];
+      capture = undefined;
     }
   }
 
+  const contacts = capture?.contacts ?? [];
+
   if (contacts.length === 0) {
-    return {
-      ok: false,
-      error: 'No contacts found — open WhatsApp Web with the chat list visible.',
-    };
+    return { ok: false, error: emptyReason(capture?.diagnostics) };
   }
 
   try {
@@ -124,6 +123,21 @@ async function scan(apiBase: string): Promise<ScanResult> {
 
 function trimBase(apiBase: string): string {
   return apiBase.trim().replace(/\/+$/, '');
+}
+
+function emptyReason(diagnostics?: CaptureDiagnostics): string {
+  if (!diagnostics) {
+    return 'Could not read the WhatsApp tab — reload the page (F5) and try again.';
+  }
+
+  if (!diagnostics.strategy || diagnostics.rowCount === 0) {
+    return 'No chat rows found — open the main chat list (not the New chat panel) and try again.';
+  }
+
+  const firstId = diagnostics.firstDataId ?? 'none';
+  const firstTitle = diagnostics.firstTitle ?? 'none';
+
+  return `Found ${diagnostics.rowCount} rows but none were contacts (first data-id: ${firstId}, first title: ${firstTitle}).`;
 }
 
 async function errorText(response: Response): Promise<string> {

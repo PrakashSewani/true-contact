@@ -39,6 +39,16 @@ export interface CaptureCommand {
   type: 'capture';
 }
 
+export interface CaptureDiagnostics {
+  url: string;
+  strategy: string | null;
+  rowCount: number;
+  matchedCount: number;
+  firstDataId: string | null;
+  firstTitle: string | null;
+}
+
 export interface CaptureResult {
   contacts: NormalizedContact[];
+  diagnostics?: CaptureDiagnostics;
 }

@@ -1,4 +1,4 @@
-import type { CaptureResult } from '../lib/messages';
+import type { CaptureDiagnostics, CaptureResult } from '../lib/messages';
 
 export default defineContentScript({
   matches: ['https://web.whatsapp.com/*'],
@@ -14,15 +14,36 @@ export default defineContentScript({
   },
 });
 
+const ROW_STRATEGIES = ['#pane-side [role="listitem"]', '[role="listitem"]'];
+
 function captureContacts(): CaptureResult {
   const contacts: CaptureResult['contacts'] = [];
   const seen = new Set<string>();
 
-  const rows = document.querySelectorAll('#pane-side [role="listitem"]');
+  let strategy: string | null = null;
+  let rows: Element[] = [];
 
-  for (const row of rows) {
-    const jid = chatJid(row);
+  for (const selector of ROW_STRATEGIES) {
+    const found = Array.from(document.querySelectorAll(selector));
+    if (found.length > 0) {
+      strategy = selector;
+      rows = found;
+      break;
+    }
+  }
+
+  let firstDataId: string | null = null;
+  let firstTitle: string | null = null;
+
+  for (const [index, row] of rows.entries()) {
+    const dataId = chatDataId(row);
+    const jid = jidFromDataId(dataId);
     const name = chatName(row);
+
+    if (index === 0) {
+      firstDataId = dataId;
+      firstTitle = name;
+    }
 
     if (!jid.endsWith('@c.us') || name === '' || seen.has(jid)) {
       continue;
@@ -41,14 +62,32 @@ function captureContacts(): CaptureResult {
     });
   }
 
-  return { contacts };
+  const diagnostics: CaptureDiagnostics = {
+    url: location.href,
+    strategy,
+    rowCount: rows.length,
+    matchedCount: contacts.length,
+    firstDataId,
+    firstTitle,
+  };
+
+  return { contacts, diagnostics };
 }
 
-function chatJid(row: Element): string {
+function chatDataId(row: Element): string | null {
   const holder = row.querySelector('[data-id]') ?? row;
-  const dataId = holder.getAttribute('data-id') ?? '';
 
-  return dataId.split('_').pop() ?? '';
+  return holder.getAttribute('data-id');
+}
+
+function jidFromDataId(dataId: string | null): string {
+  if (!dataId) {
+    return '';
+  }
+
+  const segment = dataId.split('_').find((part) => part.endsWith('@c.us'));
+
+  return segment ?? '';
 }
 
 function chatName(row: Element): string {

@@ -11,6 +11,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - Worker names in the repo configs now match the deployed Workers (`true-contact`,
   `true-contact-site`) so `wrangler` CLI commands target them correctly (D-017).
 
+### Fixed
+
+- WhatsApp connector: chat capture extracts the JID from the current `data-id` format, and a
+  scan that finds nothing reports what the capture actually saw.
+
 ## [1.0.0] - 2026-10-02
 
 ### Added
