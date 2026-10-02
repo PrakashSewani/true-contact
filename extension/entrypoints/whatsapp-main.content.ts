@@ -29,21 +29,35 @@ export default defineContentScript({
         return;
       }
 
-      const rows = captureRows();
-      const wppEntries = await captureWppEntries();
-      const bulk = mergeBulkEntries(wppEntries, captureBulk());
-      debugCapture(rows, bulk);
+      try {
+        const rows = captureRows();
+        const wppEntries = await captureWppEntries();
+        const bulk = mergeBulkEntries(wppEntries, captureBulk());
+        debugCapture(rows, bulk);
 
-      window.postMessage(
-        {
-          source: 'truecontact-connector-page',
-          type: 'capture-result',
-          nonce: data.nonce,
-          rows,
-          bulk,
-        },
-        '*',
-      );
+        window.postMessage(
+          {
+            source: 'truecontact-connector-page',
+            type: 'capture-result',
+            nonce: data.nonce,
+            rows,
+            bulk,
+          },
+          '*',
+        );
+      } catch (error) {
+        window.postMessage(
+          {
+            source: 'truecontact-connector-page',
+            type: 'capture-result',
+            nonce: data.nonce,
+            rows: [],
+            bulk: [],
+            error: error instanceof Error ? error.message : String(error),
+          },
+          '*',
+        );
+      }
     });
   },
 });
@@ -107,12 +121,14 @@ function wpp(): WppLike | undefined {
 }
 
 async function waitForWpp(client: WppLike): Promise<void> {
-  const deadline = Date.now() + 5000;
+  const deadline = Date.now() + 8000;
 
-  while (!client.isReady && Date.now() < deadline) {
+  while (!safeReady(client) && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 }
+
+let wppContactCount = 0;
 
 async function captureWppEntries(): Promise<BulkEntry[]> {
   const client = wpp();
@@ -130,6 +146,8 @@ async function captureWppEntries(): Promise<BulkEntry[]> {
   } catch {
     return [];
   }
+
+  wppContactCount = contacts.length;
 
   const entries = new Map<string, BulkEntry>();
 
@@ -219,11 +237,15 @@ interface RowCapture {
 
 function debugCapture(rows: RowCapture[], bulk: BulkEntry[]): void {
   try {
+    const client = wpp();
     const payload = {
       rows: rows.length,
       rowsWithPhone: rows.filter((row) => row.phone).length,
       bulk: bulk.length,
       bulkWithPhone: bulk.filter((entry) => entry.phone).length,
+      wpp: client
+        ? { present: true, ready: safeReady(client), contacts: wppContactCount }
+        : { present: false },
       rowSample: rows.slice(0, 4),
       bulkSample: bulk.slice(0, 4).map((entry) => ({ id: entry.id, phone: entry.phone })),
       trace: traceFirstRow(),
@@ -232,6 +254,14 @@ function debugCapture(rows: RowCapture[], bulk: BulkEntry[]): void {
     console.log(`[TrueContact] capture ${JSON.stringify(payload)}`);
   } catch (error) {
     console.log('[TrueContact] capture debug failed', error);
+  }
+}
+
+function safeReady(client: WppLike): boolean | undefined {
+  try {
+    return client.isReady;
+  } catch {
+    return undefined;
   }
 }
 

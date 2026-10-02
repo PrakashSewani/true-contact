@@ -32,6 +32,7 @@ interface RowCapture {
 interface PageCapture {
   rows: RowCapture[];
   bulk: BulkEntry[];
+  error?: string | null;
 }
 
 async function captureContacts(): Promise<CaptureResult> {
@@ -121,6 +122,7 @@ async function captureContacts(): Promise<CaptureResult> {
     matchedCount: contacts.length,
     withPhone,
     reactFound: capture !== null,
+    captureError: capture?.error ?? null,
     firstTitle,
     sampleJid,
   };
@@ -158,7 +160,7 @@ async function requestCapture(): Promise<PageCapture | null> {
     const timeout = window.setTimeout(() => {
       cleanup();
       resolve(null);
-    }, 10000);
+    }, 20000);
 
     const onMessage = (event: MessageEvent) => {
       if (event.source !== window) {
@@ -166,7 +168,14 @@ async function requestCapture(): Promise<PageCapture | null> {
       }
 
       const data = event.data as
-        | { source?: string; type?: string; nonce?: string; rows?: unknown; bulk?: unknown }
+        | {
+            source?: string;
+            type?: string;
+            nonce?: string;
+            rows?: unknown;
+            bulk?: unknown;
+            error?: unknown;
+          }
         | undefined;
 
       if (
@@ -180,6 +189,7 @@ async function requestCapture(): Promise<PageCapture | null> {
 
       cleanup();
       resolve({
+        error: typeof data.error === 'string' ? data.error : null,
         rows: data.rows.map((value) => {
           if (!value || typeof value !== 'object') {
             return { id: null, phone: null };

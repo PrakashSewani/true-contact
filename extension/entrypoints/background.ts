@@ -130,6 +130,10 @@ function emptyReason(diagnostics?: CaptureDiagnostics): string {
     return 'Could not read the WhatsApp tab — reload the page (F5) and try again.';
   }
 
+  if (diagnostics.captureError) {
+    return `WhatsApp capture failed: ${diagnostics.captureError}`;
+  }
+
   if (!diagnostics.strategy || diagnostics.rowCount === 0) {
     return 'No chat rows found — open the main chat list (not the New chat panel) and try again.';
   }
