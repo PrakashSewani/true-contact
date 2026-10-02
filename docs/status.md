@@ -15,24 +15,26 @@ rule 4. Keep exactly one phase `in progress`.
 
 ## Current handoff
 
-**Phase:** post-launch iteration — v1.2.0 released and live; the WhatsApp phone-capture stack
-(#38/#39) in review.
+**Phase:** post-launch iteration — v1.2.0 live; the phone-capture stack (#38/#39) is merged to
+`dev`; UI unification (D-022) is in progress.
 
 **Done since v1.0.0:** chunked/resumable imports (D-018); personal-only access with admin
 approvals (D-019); store prep — connector icons + popup UX, privacy page, listing copy; phone
 capture through WhatsApp Web's in-page store via WA-JS (D-020); the personal-stage import cap
-removed (D-021). Releases: v1.1.0, v1.2.0 — both deployed through Workers Builds
-(`true-contact` / `true-contact-site`).
+removed (D-021); capture corrected to the address book only, `@lid`/`@c.us` folded per phone, and
+Meta AI + the account's own card filtered; connector console diagnostics removed (PR #41);
+releases v1.1.0/v1.2.0 deployed through Workers Builds (`true-contact` / `true-contact-site`).
 
-**Verified (2026-10-02):** releases v1.0.0–v1.2.0 green; live `/api/health` ok; the connector
-captured **3,268 contacts with 2,769 phone numbers** in a real WhatsApp Web session (console
-diagnostics); `pnpm check` green on the stack heads.
+**Verified (2026-10-02):** live `/api/health` ok; a real session scan pushed **493 unique
+contacts** (every externalId `@c.us`, no duplicates, Meta AI and self absent); `pnpm check` green
+on the merged stack.
 
 **Blocked by:** nothing.
 
-**Next action:** verify the batched push in production (reload the extension → Delete all data in
-the app → Scan), then strip the temporary capture diagnostics and merge #38 → #39; prep the next
-release.
+**In progress:** shared UI system (D-022, branch `ui/uniform-components`) — MUI theme in
+`@truecontact/ui`, app controls migrated, site renders the same buttons via React islands.
+
+**Next action:** finish + PR the UI slice, merge #41, then cut release 1.2.1 (release:minor).
 
 ---
 

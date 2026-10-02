@@ -579,3 +579,37 @@ quota gate only gets in the way of the owner's own imports.
 
 **Confirmed by user:** 2026-10-02 ("since we are a personal app now dont limit shit… add to
 backlog when officially shipping add rate limiting and pricing").
+
+## D-022: One UI system — MUI in the app, React-rendered MUI on the site
+
+**Date:** 2026-10-02
+
+**Decision:** The product web app adopts **MUI** (`@mui/material` 9.4.0 with
+`@emotion/react`/`@emotion/styled` 11.14.0) as its component system, and the promo site renders
+the **same components** through Astro's React integration (`@astrojs/react`) instead of
+copy-matching styles. A new workspace package `ui/` (`@truecontact/ui`) owns the shared theme
+(brand palette, radii, typography, light/dark schemes) and the components both frontends render:
+
+- App: `ThemeProvider` + `CssBaseline`; interactive controls (buttons, inputs, selects) move to
+  MUI components themed to the existing brand values (green `#2f6f4f` light / `#6fbf94` dark).
+- Site: CTAs and buttons become the shared component. Static usage renders server-side with no
+  hydration; a React island only ships JS where interaction is genuinely needed.
+- Both surfaces keep `prefers-color-scheme` light/dark behaviour through the shared theme.
+- Layout/marketing CSS stays; the hand-rolled `.button-*` styles retire in favour of the
+  component (`product/src/web/styles.css` keeps only structural styles).
+
+**Why:** buttons had drifted across three hand-rolled style systems (app CSS, site CSS, extension
+popup), and the user asked for uniform controls across site and app ("for site and app please use
+uniform buttons, use a ui framework like chakra or mui"). One shared component keeps a single
+source of truth; MUI was picked over Chakra for component breadth and ecosystem maturity; React
+islands were picked over token-sharing so the surfaces share components, not lookalikes.
+
+**Rejected:** copy-matching CSS between the two apps (drifts); tokens-only sharing (lookalikes,
+and the user explicitly chose literal reuse); Chakra UI 3.37.0 (smaller ecosystem, more churn);
+making the promo site a SPA (needless runtime for static marketing pages).
+
+**Trade-offs accepted:** the site build now pulls React + MUI at build time (output stays static
+HTML; only explicitly hydrated islands ship JS); the app bundle grows with MUI (~tens of kB).
+
+**Confirmed by user:** 2026-10-02 (chose "MUI" for the app and "React islands in Astro" for the
+site when asked).

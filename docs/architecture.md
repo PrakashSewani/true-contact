@@ -8,11 +8,13 @@ One pnpm workspace, TypeScript everywhere. Four packages:
 |---|---|
 | `product/` | The web application: React SPA + Hono API compiled into **one Cloudflare Worker** |
 | `extension/` | Manifest V3 browser extension (WXT + React): the WhatsApp source adapter |
-| `site/` | Static promo site (Astro); deploys independently of the product |
+| `site/` | Static promo site (Astro); renders shared UI components via `@astrojs/react` (D-022); deploys independently of the product |
 | `shared/` | The only cross-package code: normalized-contact + pairing schemas (zod), brand constants |
+| `ui/` | Shared UI system (D-022): the MUI theme (brand palette, radii, typography, light/dark) and the components both frontends render |
 
-Dependencies: `product → shared`, `extension → shared`, `site → shared`; `shared` depends only on
-zod. The site and the extension never import product runtime code, and the product never imports
+Dependencies: `product → shared, ui`; `extension → shared`; `site → shared, ui`; `shared`
+depends only on zod; `ui` depends only on React + MUI and on no other package. The site and the
+extension never import product runtime code, and the product never imports
 adapter internals — the extension is one source adapter, not a dependency of the core.
 
 ## Components
@@ -27,7 +29,8 @@ adapter internals — the extension is one source adapter, not a dependency of t
 | Import pipeline | `product/src/imports` + `IMPORTS_QUEUE` consumer | Intake, chunked reconciliation against the graph, limit enforcement |
 | Raw imports | `IMPORTS_BUCKET` (R2) | Temporary raw payloads; minimized retention, never the canonical store |
 | WhatsApp connector | `extension/` | Captures legitimately available WhatsApp Web contact data and pushes normalized batches |
-| Promo site | `site/` | Static Astro landing page; assets-only Worker `true-contact-site`; deploys independently from `main` (D-016) |
+| Shared UI | `ui/` | MUI theme + components (buttons, fields) consumed by both the app and the promo site (D-022) |
+| Promo site | `site/` | Static Astro landing page; shared UI components rendered through React with no hydration for static use (D-022); assets-only Worker `true-contact-site`; deploys independently from `main` (D-016) |
 
 Bindings in `product/wrangler.jsonc`: `DB` (D1), `IMPORTS_BUCKET` (R2), `IMPORTS_QUEUE`
 (Queues producer + consumer), `ASSETS` (SPA, `run_worker_first: ["/api/*"]`).
