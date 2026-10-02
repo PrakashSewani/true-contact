@@ -101,6 +101,30 @@ importRoutes.get('/api/imports/:id', async (c) => {
   return c.json({ import: importSummary(row) });
 });
 
+importRoutes.post('/api/imports/:id/resume', async (c) => {
+  const user = await getSessionUser(c);
+  if (!user) {
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+
+  const db = drizzle(c.env.DB, { schema });
+  const [row] = await db
+    .select()
+    .from(schema.imports)
+    .where(and(eq(schema.imports.id, c.req.param('id')), eq(schema.imports.userId, user.id)));
+
+  if (!row) {
+    return c.json({ error: 'not found' }, 404);
+  }
+  if (row.status !== 'processing') {
+    return c.json({ error: 'only a processing import can be resumed' }, 409);
+  }
+
+  await c.env.IMPORTS_QUEUE.send({ importId: row.id, cursor: row.cursor });
+
+  return c.json({ import: importSummary(row) });
+});
+
 type ImportRow = typeof schema.imports.$inferSelect;
 
 function importSummary(row: ImportRow) {
@@ -110,7 +134,11 @@ function importSummary(row: ImportRow) {
     status: row.status,
     stats: row.stats ?? null,
     error: row.error ?? null,
+    cursor: row.cursor,
+    total: row.total,
+    progressAt: row.progressAt ?? null,
     createdAt: row.createdAt,
+    startedAt: row.startedAt ?? null,
     finishedAt: row.finishedAt ?? null,
   };
 }

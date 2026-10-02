@@ -442,3 +442,95 @@ manual deploys).
 
 **Supersedes:** the manual-deploy clauses in D-002, D-014, and D-015. One-time resource
 creation, secrets, and rollbacks remain manual, documented in the `ship-release` skill.
+
+## D-017: Worker names aligned to the deployed Workers
+
+**Date:** 2026-10-02
+
+**Decision:** The launch setup created the dashboard Workers as `true-contact` (product) and
+`true-contact-site` (promo site). The repo configs (`product/wrangler.jsonc`,
+`site/wrangler.jsonc`) now use the same names so `wrangler` CLI commands (secrets, deployments,
+rollback) target the deployed Workers. D-016's table records the originally planned
+`truecontact` / `truecontact-site` names — the first deploys already worked because Workers
+Builds matches the connected Worker name automatically (`WRANGLER_CI_OVERRIDE_NAME`).
+
+**Why:** Workers cannot be renamed, so the repo aligns to the dashboard; equal names remove the
+silent trap where CLI commands fail with "Worker does not exist".
+
+**Confirmed by user:** 2026-10-02 (names set during the dashboard launch setup).
+
+## D-018: Chunked, resumable import processing
+
+**Date:** 2026-10-02
+
+**Decision:** Import processing becomes cursor-based slices after the first real import
+(~1,100 contacts) exceeded the queue consumer's 15-minute wall-clock limit mid-run: the whole
+import ran in one invocation, was killed before it could record an error, and the queue's
+retry restarted it from scratch — leaving the import stuck at `processing` with ~200 contacts
+done. On the Workers **Free** plan (10 ms CPU, 50 subrequests and 100k requests per day; the
+user chose to stay on it) the redesign works inside those ceilings:
+
+- Each queue message carries `{ importId, cursor }`; an invocation processes one slice of
+  `IMPORT_CHUNK_SIZE` contacts (default 5 — bounded so ~8 D1 calls per contact stay under the
+  50-subrequest ceiling), persists progress, then enqueues the next slice.
+- `imports` grows `cursor`, `total`, and `progress_at` (migration 0003) for progress display,
+  stall detection, and resume; slices run strictly one at a time.
+- Idempotency: a slice skips contacts whose observation already exists for that import
+  (`external_id` match — always set for WhatsApp batches; file records without an id can
+  duplicate at most one partially-processed slice). Stats are derived from the database at
+  finalize, and the usage row uses the import id as its primary key, so retried finals can't
+  double-count.
+- Failure policy: the queue handler retries transient failures while queue `attempts` remain
+  and marks the import `failed` on the terminal attempt; a session-authenticated
+  `POST /api/imports/:id/resume` re-enqueues from the persisted cursor for stalled imports.
+- `GET /api/imports` and `:id` expose `cursor`/`total`/`progressAt` so the UI shows progress
+  and a resume affordance instead of an indefinite "processing".
+
+**Supersedes:** D-009's single-invocation processing and its "no automatic retry / mark failed
+in catch" policy (platform kills bypass the catch — the queue's retry lifecycle is the honest
+signal). D-009's matching, adoption, and conflict rules stand. Everything else about intake is
+unchanged.
+
+**Rejected:** processing a whole import per invocation (dies at the wall-clock limit);
+marking failed on caught errors only (misses platform kills); slices of 25-50 (exceed the
+subrequest ceiling on Free); Workers Paid (user's call — the design works on Free, just
+slower).
+
+**Confirmed by user:** 2026-10-02 (stay on Free plan; processing messaging should be
+progress-based rather than a fixed window).
+
+## D-019: Personal-only access with admin approval
+
+**Date:** 2026-10-02
+
+**Decision:** Until there is funding to run TrueContact as a free public service, it operates
+as a personal project with gated access:
+
+- Registration stays open, but a new account has **no product access** until the admin approves
+  it: every authenticated product route (contacts, review actions, imports, export, pairing)
+  returns `403 pending approval` for unapproved accounts; the bearer-token extension import
+  checks membership too.
+- Membership lives in a new `memberships` table (`user_id` PK, `role` `admin | member`,
+  `status` `pending | approved | rejected`, `decided_at/by`). A missing row means `pending` —
+  no signup hook needed.
+- Migration `0004` creates the table and promotes **every account existing at migration time**
+  to admin/approved (in production that is exactly the current user) — self-contained and
+  disaster-recoverable. Accounts created after it stay pending until approved.
+- Admin API: `GET /api/admin/users`, `POST /api/admin/users/:id/approve`, `POST
+  /api/admin/users/:id/reject` (admins cannot be demoted through these routes). The SPA gains a
+  waiting screen for pending/rejected accounts, a Members page for admins, and `GET /api/me`
+  reports `{ membership }` so it can route itself.
+- No email notifications (no email provider in v1 — D-004): pending users see the waiting
+  screen; the admin sees the pending list in the app.
+- Opening to the public later is a configuration change (approve-by-default), not a rebuild.
+
+**Why:** the owner wants a personal/friends-only stage while the core loop proves itself and
+funding is secured; public signups would otherwise consume the free-tier D1/R2/Queues quota
+and expose an unfinished product.
+
+**Rejected:** invite codes (more moving parts than admin approval at this scale); closing
+registration entirely (the owner would have to create every account by hand); an env-var
+allowlist (no audit trail, awkward to change).
+
+**Confirmed by user:** 2026-10-02 ("personal only project… admin approves new joinings… free
+to the world once funded").

@@ -203,6 +203,49 @@ describe('import processing', () => {
     expect(identities.map((row) => row.displayName)).toEqual(['CSV Person']);
   });
 
+  it('processes in slices and skips already-processed contacts when a slice is retried', async () => {
+    const { cookie, userId } = await registerUser();
+    const importId = await upload(
+      cookie,
+      'chunked.vcf',
+      [
+        vcard('A One', '+1 555 1001'),
+        vcard('B Two', '+1 555 1002'),
+        vcard('C Three', '+1 555 1003'),
+      ].join('\r\n'),
+    );
+
+    await runQueue(importId, { chunkSize: 1 });
+
+    const [job] = await db.select().from(schema.imports).where(eq(schema.imports.id, importId));
+    expect(job?.status).toBe('complete');
+    expect(job?.cursor).toBe(3);
+    expect(job?.total).toBe(3);
+    expect(job?.stats).toMatchObject({ contacts: 3, created: 3, skipped: 0 });
+
+    // Simulate a killed run being redelivered: rewind and re-run from cursor 0.
+    // Existing observations must be skipped and usage must not double-count.
+    await db
+      .update(schema.imports)
+      .set({ status: 'processing', cursor: 0 })
+      .where(eq(schema.imports.id, importId));
+
+    await runQueue(importId, { chunkSize: 1 });
+
+    const observations = await db
+      .select()
+      .from(schema.observations)
+      .where(eq(schema.observations.importId, importId));
+    expect(observations).toHaveLength(3);
+
+    const usage = await db
+      .select()
+      .from(schema.usageOperations)
+      .where(eq(schema.usageOperations.userId, userId));
+    expect(usage).toHaveLength(1);
+    expect(usage[0]?.quantity).toBe(3);
+  });
+
   it('marks an import failed when the raw payload is missing', async () => {
     const { cookie } = await registerUser();
     const importId = await upload(cookie, 'gone.vcf', vcard('Missing Person', '+1 555 0400'));

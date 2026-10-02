@@ -1,9 +1,11 @@
 import { BRAND } from '@truecontact/shared';
 import { NavLink, Outlet, useNavigate } from 'react-router';
+import { useAccess } from '../access';
 import { authClient } from '../auth-client';
 
 export function AppLayout() {
   const { data: session } = authClient.useSession();
+  const access = useAccess();
   const navigate = useNavigate();
 
   async function handleSignOut() {
@@ -26,6 +28,11 @@ export function AppLayout() {
             <NavLink to="/imports" className={navClass}>
               Imports
             </NavLink>
+            {access.membership.role === 'admin' && (
+              <NavLink to="/admin" className={navClass}>
+                Members
+              </NavLink>
+            )}
           </nav>
         </div>
         <div className="topbar-right">

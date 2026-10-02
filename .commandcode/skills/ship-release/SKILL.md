@@ -49,19 +49,27 @@ version-bump commit — deploying identical code.
 
 | Worker | Root directory | Build command | Deploy command | Build variables |
 |---|---|---|---|---|
-| `truecontact` | `product` | `pnpm install --frozen-lockfile && pnpm build` | `npx wrangler d1 migrations apply DB --remote && npx wrangler deploy` | `SKIP_DEPENDENCY_INSTALL=1`, `PNPM_VERSION=12.8.1` |
-| `truecontact-site` | `site` | `pnpm install --frozen-lockfile && pnpm build` | `npx wrangler deploy` | `SKIP_DEPENDENCY_INSTALL=1`, `PNPM_VERSION=12.8.1`, `PUBLIC_APP_URL=https://app.truecontact.prakashsewani.com` |
+| `true-contact` | `product` | `pnpm install --frozen-lockfile && pnpm build` | `npx wrangler d1 migrations apply DB --remote && npx wrangler deploy` | `SKIP_DEPENDENCY_INSTALL=1`, `PNPM_VERSION=12.8.1` |
+| `true-contact-site` | `site` | `pnpm install --frozen-lockfile && pnpm build` | `npx wrangler deploy` | `SKIP_DEPENDENCY_INSTALL=1`, `PNPM_VERSION=12.8.1`, `PUBLIC_APP_URL=https://app.truecontact.prakashsewani.com` |
 
 - Build logs, retries, and rollbacks: Worker → **Deployments** → **Build History**.
 - Preview builds stay off per Worker (**Settings** → **Build** → **Branch control** →
   **Enable Preview Builds** unchecked), so only `main` pushes build.
+- Once the Chrome Web Store listing is live, add `PUBLIC_EXTENSION_URL` (site) and
+  `VITE_EXTENSION_URL` (product) build variables so the site and app link straight to the
+  listing; without them both fall back to a store search.
 - Install is explicit because the builds run inside a pnpm workspace subdirectory; Node uses the
   build image default (24.x, satisfies `engines >=22`).
 
-### One-time setup (dashboard)
+### One-time setup (dashboard) — exercised end to end on 2026-10-02 (v1.0.0)
 
-> Planned procedure — exercise it once against the real account before trusting it, then update
-> this section with observed results.
+> **Observed results from the first launch.** Connect the builds only **after** the release PR
+> lands on `main`: connecting earlier makes both builds fail, because the root directories do not
+> exist in a template-only tree — retrying them after the release merges clears that up.
+> Cloudflare provisions the Custom Domain certificate asynchronously, so the first HTTPS request
+> can fail with `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for a few minutes. The deployed Workers are
+> named `true-contact` / `true-contact-site`; Workers Builds matches the connected name
+> automatically (`WRANGLER_CI_OVERRIDE_NAME`), and the repo configs were aligned to them (D-017).
 
 Prerequisites: the repository is connected to GitHub, and the Cloudflare account owns the
 `prakashsewani.com` zone.
@@ -88,8 +96,8 @@ Prerequisites: the repository is connected to GitHub, and the Cloudflare account
 3. **Release `dev` → `main`** (labeled `release:*` PR) so `main` carries the real D1 id and the
    v1.0.0 code. Do this before connecting builds.
 
-4. **Connect `truecontact`** — Workers & Pages → Create application → Import a repository →
-   GitHub → this repository → configure with the `truecontact` row from the table above, select
+4. **Connect `true-contact`** — Workers & Pages → Create application → Import a repository →
+   GitHub → this repository → configure with the `true-contact` row from the table above, select
    the token from step 2, disable preview builds, save and deploy. Then on the new Worker
    (**Settings** → **Variables and Secrets**) add:
    - `BETTER_AUTH_SECRET` — secret; generate with `openssl rand -base64 32`
@@ -97,7 +105,7 @@ Prerequisites: the repository is connected to GitHub, and the Cloudflare account
 
    Deploy the variables (or `npx wrangler secret put …` once the Worker exists).
 
-5. **Connect `truecontact-site`** — same import flow with the `truecontact-site` row from the
+5. **Connect `true-contact-site`** — same import flow with the `true-contact-site` row from the
    table above (including the `PUBLIC_APP_URL` build variable), preview builds off.
 
 6. **Verify the first deploy** — build ends green in Build History; `https://app.truecontact.prakashsewani.com/api/health`

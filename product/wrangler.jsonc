@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "truecontact",
+  "name": "true-contact",
   "main": "src/api/index.ts",
   "compatibility_date": "2026-08-22",
   "compatibility_flags": ["nodejs_compat"],
@@ -11,7 +11,8 @@
     }
   ],
   "vars": {
-    "FREE_IMPORT_LIMIT": "1000"
+    "FREE_IMPORT_LIMIT": "1000",
+    "IMPORT_CHUNK_SIZE": "5"
   },
   "assets": {
     "binding": "ASSETS",

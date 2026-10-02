@@ -22,6 +22,20 @@
       "when": 1790928469906,
       "tag": "0002_short_tattoo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790945731347,
+      "tag": "0003_chunked_imports",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790946005844,
+      "tag": "0004_memberships",
+      "breakpoints": true
     }
   ]
 }

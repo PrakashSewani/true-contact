@@ -1,6 +1,6 @@
 import type { NormalizedContact } from '@truecontact/shared';
 import { importBatchSchema } from '@truecontact/shared';
-import { and, eq, inArray, or, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, or, type SQL, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../db/schema';
 import {
@@ -13,6 +13,9 @@ import { parseVCard } from '../domain/parse-vcard';
 import { adoptValues, createIdentityFromObservation, type Db, recordEvent } from './graph';
 
 type ImportRow = typeof schema.imports.$inferSelect;
+
+const DEFAULT_CHUNK_SIZE = 5;
+const MAX_CHUNK_SIZE = 50;
 
 interface ImportContext {
   db: Db;
@@ -28,30 +31,56 @@ interface ReconcileOutcome {
   conflicts: number;
 }
 
-export async function processImport(env: Env, importId: string): Promise<void> {
+interface SlicePayload {
+  contacts: NormalizedContact[];
+  total: number;
+  skipped: number;
+}
+
+export async function processImport(env: Env, importId: string, cursor: number): Promise<void> {
   const db = drizzle(env.DB, { schema });
   const [job] = await db.select().from(schema.imports).where(eq(schema.imports.id, importId));
 
-  if (!job || job.status === 'complete') {
+  if (!job || job.status === 'complete' || job.status === 'failed') {
     return;
   }
 
-  await db
-    .update(schema.imports)
-    .set({ status: 'processing', startedAt: new Date() })
-    .where(eq(schema.imports.id, importId));
-
-  try {
-    await runImport(env, db, job);
-  } catch (error) {
+  if (job.status !== 'processing') {
     await db
       .update(schema.imports)
-      .set({ status: 'failed', error: errorMessage(error), finishedAt: new Date() })
+      .set({ status: 'processing', startedAt: job.startedAt ?? new Date() })
       .where(eq(schema.imports.id, importId));
   }
+
+  await runSlice(env, db, job, cursor);
 }
 
-async function runImport(env: Env, db: Db, job: ImportRow): Promise<void> {
+export async function markImportFailed(env: Env, importId: string, error: unknown): Promise<void> {
+  const db = drizzle(env.DB, { schema });
+
+  await db
+    .update(schema.imports)
+    .set({ status: 'failed', error: errorMessage(error), finishedAt: new Date() })
+    .where(eq(schema.imports.id, importId));
+}
+
+function chunkSize(env: Env): number {
+  const parsed = Number.parseInt(env.IMPORT_CHUNK_SIZE ?? '', 10);
+
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return DEFAULT_CHUNK_SIZE;
+  }
+
+  return Math.min(parsed, MAX_CHUNK_SIZE);
+}
+
+async function loadSlice(
+  env: Env,
+  db: Db,
+  job: ImportRow,
+  cursor: number,
+  size: number,
+): Promise<SlicePayload> {
   const raw = job.rawKey ? await env.IMPORTS_BUCKET.get(job.rawKey) : null;
   if (!raw) {
     throw new Error('raw payload is missing');
@@ -65,94 +94,192 @@ async function runImport(env: Env, db: Db, job: ImportRow): Promise<void> {
     throw new Error('source is missing');
   }
 
-  const observedAt = job.createdAt.toISOString();
   const text = await raw.text();
 
-  let contacts: NormalizedContact[];
-  let skipped = 0;
-
   if (source.kind === 'whatsapp') {
-    const batch = importBatchSchema.safeParse(JSON.parse(text));
+    let envelope: { source?: unknown; contacts?: unknown } | null = null;
+    try {
+      envelope = JSON.parse(text) as { source?: unknown; contacts?: unknown } | null;
+    } catch {
+      throw new Error('invalid whatsapp batch payload');
+    }
+
+    const all = envelope?.contacts;
+    if (envelope?.source !== 'whatsapp' || !Array.isArray(all)) {
+      throw new Error('invalid whatsapp batch payload');
+    }
+    const slice = all.slice(cursor, cursor + size);
+
+    if (slice.length === 0) {
+      return { contacts: [], total: all.length, skipped: 0 };
+    }
+
+    const batch = importBatchSchema.safeParse({ source: 'whatsapp', contacts: slice });
     if (!batch.success) {
       throw new Error('invalid whatsapp batch payload');
     }
-    contacts = batch.data.contacts;
-  } else {
-    const parsed =
-      source.kind === 'csv' ? parseCsv(text, { observedAt }) : parseVCard(text, { observedAt });
-    contacts = parsed.contacts;
-    skipped = parsed.skipped.length;
+
+    return { contacts: batch.data.contacts, total: all.length, skipped: 0 };
   }
 
-  const identityRows = await db
-    .select({
-      id: schema.identities.id,
-      displayName: schema.identities.displayName,
-      createdAt: schema.identities.createdAt,
-    })
-    .from(schema.identities)
-    .where(eq(schema.identities.userId, job.userId));
+  const observedAt = job.createdAt.toISOString();
+  const parsed =
+    source.kind === 'csv' ? parseCsv(text, { observedAt }) : parseVCard(text, { observedAt });
 
-  const context: ImportContext = {
-    db,
-    userId: job.userId,
-    importId: job.id,
-    sourceId: source.id,
-    identitiesByName: new Map(),
-    identityCreatedAt: new Map(),
+  return {
+    contacts: parsed.contacts.slice(cursor, cursor + size),
+    total: parsed.contacts.length,
+    skipped: parsed.skipped.length,
   };
+}
 
-  for (const row of identityRows) {
-    addToNameIndex(context, row.id, row.displayName, row.createdAt.getTime());
+async function runSlice(env: Env, db: Db, job: ImportRow, cursor: number): Promise<void> {
+  const payload = await loadSlice(env, db, job, cursor, chunkSize(env));
+  const contacts = payload.contacts;
+  const nextCursor = cursor + contacts.length;
+  const done = nextCursor >= payload.total;
+
+  if (contacts.length > 0) {
+    const existing = await db
+      .select({ externalId: schema.observations.externalId })
+      .from(schema.observations)
+      .where(
+        and(eq(schema.observations.userId, job.userId), eq(schema.observations.importId, job.id)),
+      );
+
+    const seen = new Set(
+      existing
+        .map((row) => row.externalId)
+        .filter((value): value is string => value !== null && value !== ''),
+    );
+
+    const identityRows = await db
+      .select({
+        id: schema.identities.id,
+        displayName: schema.identities.displayName,
+        createdAt: schema.identities.createdAt,
+      })
+      .from(schema.identities)
+      .where(eq(schema.identities.userId, job.userId));
+
+    const context: ImportContext = {
+      db,
+      userId: job.userId,
+      importId: job.id,
+      sourceId: job.sourceId,
+      identitiesByName: new Map(),
+      identityCreatedAt: new Map(),
+    };
+
+    for (const row of identityRows) {
+      addToNameIndex(context, row.id, row.displayName, row.createdAt.getTime());
+    }
+
+    for (const contact of contacts) {
+      if (contact.externalId && seen.has(contact.externalId)) {
+        continue;
+      }
+
+      const observationId = await recordObservation(context, contact);
+      await reconcileContact(context, contact, observationId);
+    }
   }
+
+  const now = new Date();
+
+  if (!done) {
+    await db
+      .update(schema.imports)
+      .set({ cursor: nextCursor, total: payload.total, progressAt: now })
+      .where(eq(schema.imports.id, job.id));
+    await env.IMPORTS_QUEUE.send({ importId: job.id, cursor: nextCursor });
+
+    return;
+  }
+
+  const stats = await finalize(db, job, payload, now);
+
+  await db
+    .update(schema.imports)
+    .set({
+      status: 'complete',
+      cursor: nextCursor,
+      total: payload.total,
+      progressAt: now,
+      stats,
+      finishedAt: now,
+    })
+    .where(eq(schema.imports.id, job.id));
+}
+
+async function finalize(
+  db: Db,
+  job: ImportRow,
+  payload: SlicePayload,
+  now: Date,
+): Promise<schema.ImportStats> {
+  const linkRows = await db
+    .select({
+      method: schema.identityLinks.method,
+      status: schema.identityLinks.status,
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.identityLinks)
+    .innerJoin(schema.observations, eq(schema.observations.id, schema.identityLinks.observationId))
+    .where(eq(schema.observations.importId, job.id))
+    .groupBy(schema.identityLinks.method, schema.identityLinks.status);
+
+  const [conflictRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.conflicts)
+    .innerJoin(
+      schema.observations,
+      eq(schema.observations.id, schema.conflicts.proposedObservationId),
+    )
+    .where(eq(schema.observations.importId, job.id));
 
   let created = 0;
   let linked = 0;
   let proposed = 0;
-  let conflicts = 0;
 
-  for (const contact of contacts) {
-    const observationId = await recordObservation(context, contact);
-    const outcome = await reconcileContact(context, contact, observationId);
-
-    if (outcome.action === 'created') {
-      created += 1;
-    } else if (outcome.action === 'linked') {
-      linked += 1;
-    } else {
-      proposed += 1;
+  for (const row of linkRows) {
+    if (row.method === 'new_identity') {
+      created += row.count;
+    } else if (row.method === 'exact_identifier' && row.status === 'auto') {
+      linked += row.count;
+    } else if (row.status === 'proposed') {
+      proposed += row.count;
     }
-    conflicts += outcome.conflicts;
   }
 
-  const stats: schema.ImportStats = {
-    contacts: contacts.length,
-    created,
-    linked,
-    proposed,
-    conflicts,
-    skipped,
-  };
-
-  const now = new Date();
   await db
     .update(schema.sources)
     .set({ lastObservedAt: job.createdAt, updatedAt: now })
-    .where(eq(schema.sources.id, source.id));
-  await db
-    .update(schema.imports)
-    .set({ status: 'complete', stats, finishedAt: now })
-    .where(eq(schema.imports.id, job.id));
+    .where(eq(schema.sources.id, job.sourceId));
 
-  if (contacts.length > 0) {
-    await db.insert(schema.usageOperations).values({
-      id: crypto.randomUUID(),
-      userId: job.userId,
-      kind: 'imported_contact',
-      quantity: contacts.length,
-      createdAt: now,
-    });
+  if (payload.total > 0) {
+    try {
+      await db.insert(schema.usageOperations).values({
+        id: job.id,
+        userId: job.userId,
+        kind: 'imported_contact',
+        quantity: payload.total,
+        createdAt: now,
+      });
+    } catch {
+      // The deterministic id makes the insert idempotent: a retried final slice
+      // finds the usage row already recorded and the conflict is expected.
+    }
   }
+
+  return {
+    contacts: payload.total,
+    created,
+    linked,
+    proposed,
+    conflicts: conflictRow?.count ?? 0,
+    skipped: payload.skipped,
+  };
 }
 
 async function recordObservation(

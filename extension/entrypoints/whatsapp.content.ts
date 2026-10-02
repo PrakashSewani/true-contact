@@ -1,11 +1,19 @@
-import type { CaptureResult } from '../lib/messages';
+import type { BulkEntry, CaptureDiagnostics, CaptureResult, PongResult } from '../lib/messages';
 
 export default defineContentScript({
   matches: ['https://web.whatsapp.com/*'],
+  runAt: 'document_idle',
   main() {
     browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-      if ((message as { type?: string } | undefined)?.type === 'capture') {
-        sendResponse(captureContacts());
+      const type = (message as { type?: string } | undefined)?.type;
+
+      if (type === 'capture') {
+        void captureContacts().then(sendResponse);
+        return true;
+      }
+
+      if (type === 'ping') {
+        sendResponse({ ok: true } satisfies PongResult);
         return true;
       }
 
@@ -14,41 +22,173 @@ export default defineContentScript({
   },
 });
 
-function captureContacts(): CaptureResult {
-  const contacts: CaptureResult['contacts'] = [];
-  const seen = new Set<string>();
+const ROW_SELECTOR = '[role="listitem"]';
 
-  const rows = document.querySelectorAll('#pane-side [role="listitem"]');
+interface PageCapture {
+  rows: (string | null)[];
+  bulk: BulkEntry[];
+}
 
-  for (const row of rows) {
-    const jid = chatJid(row);
-    const name = chatName(row);
+async function captureContacts(): Promise<CaptureResult> {
+  const rows = Array.from(document.querySelectorAll(ROW_SELECTOR));
+  const capture = await requestCapture();
 
-    if (!jid.endsWith('@c.us') || name === '' || seen.has(jid)) {
+  const phonesById = new Map<string, string>();
+  const namesById = new Map<string, string>();
+
+  for (const entry of capture?.bulk ?? []) {
+    if (entry.phone) {
+      phonesById.set(entry.id, entry.phone);
+    }
+    if (entry.name) {
+      namesById.set(entry.id, entry.name);
+    }
+  }
+
+  const collected = new Map<string, { name: string; phone: string | null }>();
+  let firstTitle: string | null = null;
+  let jidRows = 0;
+  let sampleJid: string | null = null;
+
+  for (const [index, row] of rows.entries()) {
+    const jid = capture?.rows[index] ?? null;
+    const title = chatName(row);
+
+    if (index === 0) {
+      firstTitle = title;
+    }
+    if (!jid) {
       continue;
     }
-    seen.add(jid);
 
-    const digits = jid.replace('@c.us', '');
-    const phone = /^\d{7,15}$/.test(digits) ? `+${digits}` : null;
+    jidRows += 1;
+    sampleJid ??= jid;
+
+    const phoneJid = jid.endsWith('@c.us') ? jid : (phonesById.get(jid) ?? '');
+    const phone = phoneOf(phoneJid);
+    const name = title !== '' ? title : (namesById.get(jid) ?? phone ?? '');
+
+    if (name !== '' && !collected.has(jid)) {
+      collected.set(jid, { name, phone });
+    }
+  }
+
+  let bulkFound = 0;
+
+  for (const entry of capture?.bulk ?? []) {
+    bulkFound += 1;
+    if (collected.has(entry.id)) {
+      continue;
+    }
+
+    const phone = phoneOf(entry.phone ?? '');
+    const name = entry.name ?? phone;
+
+    if (name) {
+      collected.set(entry.id, { name, phone });
+    }
+  }
+
+  const contacts: CaptureResult['contacts'] = [];
+  let withPhone = 0;
+
+  for (const [jid, info] of collected) {
+    if (info.phone) {
+      withPhone += 1;
+    }
 
     contacts.push({
       externalId: jid,
-      displayName: name,
-      phones: phone ? [{ value: phone }] : [],
+      displayName: info.name,
+      phones: info.phone ? [{ value: info.phone }] : [],
       emails: [],
       observedAt: new Date().toISOString(),
     });
   }
 
-  return { contacts };
+  const diagnostics: CaptureDiagnostics = {
+    url: location.href,
+    strategy: rows.length > 0 ? ROW_SELECTOR : null,
+    rowCount: rows.length,
+    jidRows,
+    bulkFound,
+    matchedCount: contacts.length,
+    withPhone,
+    reactFound: capture !== null,
+    firstTitle,
+    sampleJid,
+  };
+
+  return { contacts, diagnostics };
 }
 
-function chatJid(row: Element): string {
-  const holder = row.querySelector('[data-id]') ?? row;
-  const dataId = holder.getAttribute('data-id') ?? '';
+function phoneOf(jid: string): string | null {
+  if (!jid.endsWith('@c.us')) {
+    return null;
+  }
 
-  return dataId.split('_').pop() ?? '';
+  const digits = jid.replace('@c.us', '');
+
+  return /^\d{7,15}$/.test(digits) ? `+${digits}` : null;
+}
+
+async function requestCapture(): Promise<PageCapture | null> {
+  return new Promise((resolve) => {
+    const nonce = crypto.randomUUID();
+
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 2000);
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== window) {
+        return;
+      }
+
+      const data = event.data as
+        | { source?: string; type?: string; nonce?: string; rows?: unknown; bulk?: unknown }
+        | undefined;
+
+      if (
+        data?.source !== 'truecontact-connector-page' ||
+        data.nonce !== nonce ||
+        !Array.isArray(data.rows) ||
+        !Array.isArray(data.bulk)
+      ) {
+        return;
+      }
+
+      cleanup();
+      resolve({
+        rows: data.rows.map((value) => (typeof value === 'string' ? value : null)),
+        bulk: data.bulk
+          .map((value) => {
+            if (!value || typeof value !== 'object') {
+              return null;
+            }
+            const record = value as { id?: unknown; name?: unknown; phone?: unknown };
+            if (typeof record.id !== 'string') {
+              return null;
+            }
+            return {
+              id: record.id,
+              name: typeof record.name === 'string' ? record.name : null,
+              phone: typeof record.phone === 'string' ? record.phone : null,
+            };
+          })
+          .filter((value): value is BulkEntry => value !== null),
+      });
+    };
+
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener('message', onMessage);
+    };
+
+    window.addEventListener('message', onMessage);
+    window.postMessage({ source: 'truecontact-connector', type: 'capture', nonce }, '*');
+  });
 }
 
 function chatName(row: Element): string {
