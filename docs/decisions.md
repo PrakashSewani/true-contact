@@ -724,3 +724,18 @@ the user asked for an indicator, not live updates).
 
 **Confirmed by user:** 2026-10-03 ("enhance the contacts screen for app… lets do such operations
 in ui so that there is no strain on dbs… if import is in progress show an indicator").
+
+## D-026: Archive the repository — the project concludes
+
+**Date:** 2026-10-03
+
+**Decision:** Development stops and `PrakashSewani/true-contact` is archived read-only. Only `dev`
+and `main` remain — every other branch is deleted. The hosting resources (Workers, D1, R2) are
+torn down by the owner; no further deploys run from this repository.
+
+**Why:** the extension — the main product — was never shipped; the owner concluded the project.
+
+**Consequences:** pushes, issues, and pull requests are closed; `dev` and `main` stay browsable;
+CI and release workflows will not run.
+
+**Confirmed by user:** 2026-10-03 ("archive this repo… remove branches except dev and main").
