@@ -1,0 +1,1 @@
+CREATE INDEX `observations_import_external_idx` ON `observations` (`user_id`,`import_id`,`external_id`);

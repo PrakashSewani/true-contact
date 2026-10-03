@@ -69,7 +69,8 @@ creates the graph:
 - `observation_identifiers` — indexed normalized phone/email per observation (migration 0001);
   the import pipeline no longer writes it (D-023) — blocking reads use `identity_values`, and
   the identifiers remain in the observation payload.
-- `identity_links` — observation ↔ identity; confidence, method, status
+- `identity_links` — observation ↔ identity; confidence, method
+  (`exact_identifier` | `name_similarity` | `source_record` | `manual` | `new_identity`), status
   (`auto | proposed | confirmed | rejected`); one identity per observation.
 - `conflicts` — competing value for a canonical field with provenance and resolution state.
 - `history_events` — append-only: actor, type, payload, timestamp.
@@ -99,7 +100,7 @@ the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
 - D1's 10 GB per-database ceiling is far away at v1 scale; revisit if the graph approaches it.
 - Imports run as queue chunks (slices run one at a time, D-018); no Durable Objects yet (not
   needed at v1 scale). A slice issues one `db.batch()` with ≤ ~45 statements and reads only its
-  own blocking keys and candidates; `IMPORT_CHUNK_SIZE` defaults to 40 (D-023). Each import
+  own blocking keys and candidates; `IMPORT_CHUNK_SIZE` defaults to 30 (D-023). Each import
   records counters plus D1 rows read/written in `imports.stats` — counters only, never contact
   data (D-023/D-024).
 - Main-branch builds pin `PNPM_VERSION=12.8.1` and install the workspace explicitly

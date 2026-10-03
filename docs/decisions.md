@@ -637,7 +637,7 @@ forced `C = 5` under the 50-queries/invocation ceiling.
 
 - One `env.DB.batch()` per slice carries the writes (multi-row inserts, grouped updates), with
   statements per slice capped at ~45 so the Free-plan ceiling holds under either reading of the
-  platform docs; `IMPORT_CHUNK_SIZE` default 5 → 40 (`MAX_CHUNK_SIZE` 200).
+  platform docs; `IMPORT_CHUNK_SIZE` default 5 → 30 (`MAX_CHUNK_SIZE` 200).
 - Candidate matching becomes batched blocking-key lookups against the existing
   `identity_values(user_id, kind, normalized_value)` index, plus one identity fetch by id for
   the candidate set; name-only proposal candidates use a new indexed `identities.normalized_name`

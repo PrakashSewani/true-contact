@@ -40,14 +40,25 @@ export function ImportsPage() {
   }, [version]);
 
   useEffect(() => {
-    const active =
-      imports?.some((job) => job.status === 'pending' || job.status === 'processing') ?? false;
+    const activeJob = imports?.find(
+      (job) => job.status === 'pending' || job.status === 'processing',
+    );
 
-    if (!active) {
+    if (!activeJob) {
       return;
     }
 
-    const timer = setInterval(() => setVersion((value) => value + 1), 2500);
+    const timer = setInterval(() => {
+      api
+        .importJob(activeJob.id)
+        .then(({ import: job }) => {
+          setImports((current) =>
+            current ? current.map((item) => (item.id === job.id ? job : item)) : current,
+          );
+        })
+        .catch(() => undefined);
+    }, 2500);
+
     return () => clearInterval(timer);
   }, [imports]);
 
@@ -204,7 +215,9 @@ export function ImportsPage() {
                           job.stats.linked ?? 0
                         } matched · ${job.stats.proposed ?? 0} to review · ${
                           job.stats.conflicts ?? 0
-                        } conflicts · ${job.stats.skipped ?? 0} skipped`
+                        } conflicts${job.stats.unchanged ? ` · ${job.stats.unchanged} unchanged` : ''}${
+                          job.stats.updated ? ` · ${job.stats.updated} updated` : ''
+                        } · ${job.stats.skipped ?? 0} skipped`
                       : ''}
                   </span>
                 </div>
