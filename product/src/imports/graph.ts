@@ -2,11 +2,8 @@ import type { NormalizedContact } from '@truecontact/shared';
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import * as schema from '../db/schema';
-import {
-  normalizeEmailForMatch,
-  normalizeNameForMatch,
-  normalizePhoneForMatch,
-} from '../domain/matching';
+import { normalizeNameForMatch } from '../domain/matching';
+import { type AdoptionState, planAdoption, planValues, valueKey } from '../domain/reconcile';
 
 export type Db = DrizzleD1Database<typeof schema>;
 
@@ -41,28 +38,21 @@ export async function recordEvent(
   });
 }
 
-interface ValueRow {
-  kind: 'phone' | 'email';
-  value: string;
-  normalizedValue: string;
-  label?: string;
-}
+async function existingValueKeys(db: Db, userId: string, identityId: string): Promise<Set<string>> {
+  const existing = await db
+    .select({
+      kind: schema.identityValues.kind,
+      normalizedValue: schema.identityValues.normalizedValue,
+    })
+    .from(schema.identityValues)
+    .where(
+      and(
+        eq(schema.identityValues.userId, userId),
+        eq(schema.identityValues.identityId, identityId),
+      ),
+    );
 
-function valueRows(contact: NormalizedContact): ValueRow[] {
-  return [
-    ...contact.phones.map((phone) => ({
-      kind: 'phone' as const,
-      value: phone.value,
-      normalizedValue: normalizePhoneForMatch(phone.value),
-      label: phone.label,
-    })),
-    ...contact.emails.map((email) => ({
-      kind: 'email' as const,
-      value: email.value,
-      normalizedValue: normalizeEmailForMatch(email.value),
-      label: email.label,
-    })),
-  ].filter((row) => row.normalizedValue !== '');
+  return new Set(existing.map((value) => valueKey(value)));
 }
 
 export interface SeedParams {
@@ -77,20 +67,7 @@ export interface SeedParams {
 
 export async function seedValues(db: Db, params: SeedParams): Promise<void> {
   const now = new Date();
-  const existing = await db
-    .select({
-      kind: schema.identityValues.kind,
-      normalizedValue: schema.identityValues.normalizedValue,
-    })
-    .from(schema.identityValues)
-    .where(
-      and(
-        eq(schema.identityValues.userId, params.userId),
-        eq(schema.identityValues.identityId, params.identityId),
-      ),
-    );
-
-  const keys = new Set(existing.map((value) => `${value.kind}:${value.normalizedValue}`));
+  const keys = await existingValueKeys(db, params.userId, params.identityId);
   const context: EventContext = {
     userId: params.userId,
     actor: params.actor,
@@ -101,12 +78,8 @@ export async function seedValues(db: Db, params: SeedParams): Promise<void> {
   for (const [index, contact] of params.contacts.entries()) {
     const observationId = params.observationIds[index] ?? null;
 
-    for (const row of valueRows(contact)) {
-      const key = `${row.kind}:${row.normalizedValue}`;
-      if (keys.has(key)) {
-        continue;
-      }
-      keys.add(key);
+    for (const row of planValues(keys, contact)) {
+      keys.add(valueKey(row));
 
       await db.insert(schema.identityValues).values({
         id: crypto.randomUUID(),
@@ -139,28 +112,23 @@ export interface AdoptParams {
 }
 
 export async function adoptValues(db: Db, params: AdoptParams): Promise<number> {
-  await seedValues(db, {
-    userId: params.userId,
-    identityId: params.identityId,
-    contacts: [params.contact],
-    observationIds: [params.observationId],
-    actor: params.actor,
-    sourceId: params.sourceId,
-    importId: params.importId,
-  });
-
-  const now = new Date();
-  let conflicts = 0;
-
   const [identity] = await db
     .select()
     .from(schema.identities)
     .where(eq(schema.identities.id, params.identityId));
 
   if (!identity) {
-    return conflicts;
+    return 0;
   }
 
+  const now = new Date();
+  const state: AdoptionState = {
+    displayName: identity.displayName,
+    notes: identity.notes,
+    valueKeys: await existingValueKeys(db, params.userId, params.identityId),
+    conflictValues: new Set(),
+  };
+  const plan = planAdoption(state, params.contact);
   const context: EventContext = {
     userId: params.userId,
     actor: params.actor,
@@ -168,10 +136,28 @@ export async function adoptValues(db: Db, params: AdoptParams): Promise<number> 
     importId: params.importId,
   };
 
-  if (
-    normalizeNameForMatch(identity.displayName) !==
-    normalizeNameForMatch(params.contact.displayName)
-  ) {
+  for (const row of plan.values) {
+    await db.insert(schema.identityValues).values({
+      id: crypto.randomUUID(),
+      userId: params.userId,
+      identityId: params.identityId,
+      kind: row.kind,
+      value: row.value,
+      normalizedValue: row.normalizedValue,
+      label: row.label,
+      firstObservationId: params.observationId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await recordEvent(db, context, params.identityId, 'value_added', params.observationId, {
+      kind: row.kind,
+      value: row.value,
+    });
+  }
+
+  let conflicts = 0;
+
+  if (plan.conflict) {
     const [existingConflict] = await db
       .select({ id: schema.conflicts.id })
       .from(schema.conflicts)
@@ -180,7 +166,7 @@ export async function adoptValues(db: Db, params: AdoptParams): Promise<number> 
           eq(schema.conflicts.userId, params.userId),
           eq(schema.conflicts.identityId, params.identityId),
           eq(schema.conflicts.status, 'open'),
-          eq(schema.conflicts.proposedValue, params.contact.displayName),
+          eq(schema.conflicts.proposedValue, plan.conflict.proposedValue),
         ),
       );
 
@@ -191,23 +177,23 @@ export async function adoptValues(db: Db, params: AdoptParams): Promise<number> 
         identityId: params.identityId,
         field: 'display_name',
         existingValue: identity.displayName,
-        proposedValue: params.contact.displayName,
+        proposedValue: plan.conflict.proposedValue,
         proposedObservationId: params.observationId,
         status: 'open',
         createdAt: now,
       });
       await recordEvent(db, context, params.identityId, 'conflict_opened', params.observationId, {
         field: 'display_name',
-        proposedValue: params.contact.displayName,
+        proposedValue: plan.conflict.proposedValue,
       });
       conflicts += 1;
     }
   }
 
-  if (!identity.notes && params.contact.notes) {
+  if (plan.notes) {
     await db
       .update(schema.identities)
-      .set({ notes: params.contact.notes, updatedAt: now })
+      .set({ notes: plan.notes, updatedAt: now })
       .where(eq(schema.identities.id, params.identityId));
     await recordEvent(db, context, params.identityId, 'value_added', params.observationId, {
       kind: 'notes',
@@ -240,6 +226,7 @@ export async function createIdentityFromObservation(
     id: identityId,
     userId: params.userId,
     displayName,
+    normalizedName: normalizeNameForMatch(displayName),
     notes: params.notes ?? params.contact.notes ?? null,
     createdAt: now,
     updatedAt: now,

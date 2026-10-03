@@ -76,7 +76,7 @@ The one workflow that must feel right for the first release:
 
 "Done" for the first release means: both import paths work end to end, reconciliation produces
 reviewable output (never silent canonical changes), merge/split/history are usable, export works,
-the free-tier usage limit is enforced, and the repository's check command and CI are green.
+usage is tracked without a cap (D-021), and the repository's check command and CI are green.
 
 ## Promo site
 
@@ -101,11 +101,13 @@ Section order (single page):
 7. **FAQ and footer** — short answers (credentials, where data lives, export, sources) and the
    closing call to action.
 
-The primary CTA ("Open TrueContact") points at the product origin
-(`app.truecontact.prakashsewani.com`; a single site-side constant in `site/src/config.ts`,
-overridable at build time with `PUBLIC_APP_URL`). No forms and no waitlist backend in v1
-(D-014, D-015).
+The site presents the current stage as a closed, approval-based beta: the primary CTA ("Apply for
+the closed beta") points at the product origin (`app.truecontact.prakashsewani.com`; a single
+site-side constant in `site/src/config.ts`, overridable at build time with `PUBLIC_APP_URL`), and
+the Chrome Web Store buttons stay hidden until the connector publishes with the public launch
+(setting `PUBLIC_EXTENSION_URL` re-enables the connector section and footer links). No forms and
+no waitlist backend in v1 (D-014, D-015).
 
-Deploy-ready means: `pnpm check` green; a single static page that needs no client-side
-JavaScript; accessible semantics and focus states; responsive from ~360px; deployed as-is by the
-procedure in the `ship-release` skill.
+Deploy-ready means: `pnpm check` green; static output with no client-side JavaScript (the shared
+UI components render at build time — D-022); accessible semantics and focus states; responsive
+from ~360px; deployed as-is by the procedure in the `ship-release` skill.

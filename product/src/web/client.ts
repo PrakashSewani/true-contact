@@ -83,6 +83,17 @@ export interface ImportStats {
   proposed?: number;
   conflicts?: number;
   skipped?: number;
+  unchanged?: number;
+  updated?: number;
+  observations?: number;
+  values?: number;
+  events?: number;
+  slices?: number;
+  durationMs?: number;
+  statements?: number;
+  roundTrips?: number;
+  rowsRead?: number;
+  rowsWritten?: number;
 }
 
 export interface ImportJob {
@@ -153,6 +164,7 @@ export const api = {
       imports: ImportJob[];
       usage: { importedContacts: number };
     }>('/api/imports'),
+  importJob: (id: string) => request<{ import: ImportJob }>(`/api/imports/${id}`),
   startPairing: () =>
     request<{ pairing: { code: string; expiresAt: string } }>('/api/pairing/start', {
       method: 'POST',

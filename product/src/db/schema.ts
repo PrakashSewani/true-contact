@@ -94,6 +94,17 @@ export interface ImportStats {
   proposed?: number;
   conflicts?: number;
   skipped?: number;
+  unchanged?: number;
+  updated?: number;
+  observations?: number;
+  values?: number;
+  events?: number;
+  slices?: number;
+  durationMs?: number;
+  statements?: number;
+  roundTrips?: number;
+  rowsRead?: number;
+  rowsWritten?: number;
 }
 
 export const imports = sqliteTable(
@@ -140,6 +151,8 @@ export const observations = sqliteTable(
       .notNull()
       .references(() => sources.id, { onDelete: 'cascade' }),
     externalId: text('external_id'),
+    recordKey: text('record_key'),
+    contentHash: text('content_hash'),
     displayName: text('display_name').notNull(),
     normalizedName: text('normalized_name').notNull(),
     notes: text('notes'),
@@ -148,9 +161,9 @@ export const observations = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   },
   (table) => [
-    index('observations_user_id_idx').on(table.userId),
     index('observations_import_id_idx').on(table.importId),
-    index('observations_normalized_name_idx').on(table.normalizedName),
+    index('observations_import_external_idx').on(table.userId, table.importId, table.externalId),
+    index('observations_record_key_idx').on(table.userId, table.recordKey, table.createdAt),
   ],
 );
 
@@ -184,6 +197,7 @@ export const identities = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     displayName: text('display_name').notNull(),
+    normalizedName: text('normalized_name'),
     notes: text('notes'),
     mergedIntoId: text('merged_into_id').references((): AnySQLiteColumn => identities.id, {
       onDelete: 'set null',
@@ -191,7 +205,10 @@ export const identities = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
   },
-  (table) => [index('identities_user_id_idx').on(table.userId)],
+  (table) => [
+    index('identities_user_id_idx').on(table.userId),
+    index('identities_normalized_name_idx').on(table.userId, table.normalizedName),
+  ],
 );
 
 export const identityValues = sqliteTable(
@@ -235,7 +252,7 @@ export const identityLinks = sqliteTable(
       .references(() => observations.id, { onDelete: 'cascade' }),
     confidence: real('confidence').notNull(),
     method: text('method', {
-      enum: ['exact_identifier', 'name_similarity', 'manual', 'new_identity'],
+      enum: ['exact_identifier', 'name_similarity', 'source_record', 'manual', 'new_identity'],
     }).notNull(),
     status: text('status', { enum: ['auto', 'proposed', 'confirmed', 'rejected'] }).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

@@ -159,7 +159,7 @@ describe('review actions', () => {
   it('splits observations onto a new identity', async () => {
     const { cookie } = await registerUser();
     await runQueue(await upload(cookie, 'one.vcf', vcard('Rahul Sharma', '+91 98765 43210')));
-    await runQueue(await upload(cookie, 'two.vcf', vcard('Rahul Sharma', '+91 98765 43210')));
+    await runQueue(await upload(cookie, 'two.vcf', vcard('Rahul S.', '+91 98765 43210')));
 
     const contactId = await getOnlyContactId(cookie);
     const before = await getContact(cookie, contactId);
