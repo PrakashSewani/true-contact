@@ -622,3 +622,82 @@ site when asked).
 **Implementation note:** Astro renders framework components as independent React roots, so a
 parent `ThemeProvider` cannot pass context into component children — the shared button therefore
 bundles the provider with itself (`ThemedButton`), keeping static usage zero-hydration.
+
+## D-023: Import slices — batched, scan-free, statement-budgeted
+
+**Date:** 2026-10-03
+
+**Decision:** The queue consumer reconciles a slice with bounded, batched D1 work instead of
+per-contact statements plus per-slice full-graph scans. The audit (2026-10-03) showed the
+Free-plan D1 limits (5M rows read/day, 100k rows written/day; rows read = rows *scanned*; every
+index entry counts as a written row) were exhausted by development imports: each 5-contact slice
+re-scanned **all** identities of the user and the import's observations written so far —
+O(M × T/C + T²/C) per import — and each contact cost ~6–10 unbatched statements, which is what
+forced `C = 5` under the 50-queries/invocation ceiling.
+
+- One `env.DB.batch()` per slice carries the writes (multi-row inserts, grouped updates), with
+  statements per slice capped at ~45 so the Free-plan ceiling holds under either reading of the
+  platform docs; `IMPORT_CHUNK_SIZE` default 5 → 40 (`MAX_CHUNK_SIZE` 200).
+- Candidate matching becomes batched blocking-key lookups against the existing
+  `identity_values(user_id, kind, normalized_value)` index, plus one identity fetch by id for
+  the candidate set; name-only proposal candidates use a new indexed `identities.normalized_name`
+  (maintained at every identity write; legacy rows backfilled lazily with exact TypeScript
+  normalization) instead of loading every identity per slice. Candidate ordering keeps the
+  existing semantics (most matched identifiers, then oldest identity, stable on ties) — the
+  loader preserves it deterministically in memory rather than relying on SQL row order.
+- The reconcile decision runs in Worker memory against loaded candidate state (a pure planner in
+  `product/src/domain`, shared with the single-record action paths), on a slice-scoped key set:
+  candidate matches, similarity scores, and blocking results are never persisted.
+- `observation_identifiers` writes stop — no product query reads the table, and the identifiers
+  remain in `observations.payload`. `observations_user_id_idx` and
+  `observations_normalized_name_idx` are dropped as unused write amplification.
+- Schema (migration 0005): `observations.record_key` + `(user_id, record_key, created_at)` index,
+  `observations.content_hash`, `identities.normalized_name` + `(user_id, normalized_name)` index;
+  all nullable and additive.
+- Retried and stale slices converge: slice processing is idempotent (D-024), and a redelivery
+  whose cursor trails the job's cursor is acknowledged without work.
+
+**Rejected:** keeping the per-slice scans with a bigger chunk (the scans grow with the graph and
+would still dominate); a Durable Object or KV staging layer for candidates (new infrastructure
+for a problem D1 batches solve at v1 scale); relying on Workers Paid (the user stays on Free —
+the design fits); batching only the writes (reads were the quota killer).
+
+**Confirmed by user:** 2026-10-03 (approved the D1 import-efficiency plan; stacked-PR delivery).
+
+## D-024: Source-record idempotency — one observation per distinct source state
+
+**Date:** 2026-10-03
+
+**Decision:** A repeated import of an unchanged source record appends nothing. Every observation
+carries a source-scoped `record_key` — `<kind>:x:<externalId>` when the source provides a stable
+id (WhatsApp JID, vCard UID), otherwise `<kind>:f:<sha256>` of the canonical state (normalized
+name + sorted normalized identifiers + notes) — and a `content_hash` of that same state. Each
+slice looks the prior state up by key (one indexed query per key set) and:
+
+- **Unchanged** (hash equal): refresh the existing observation's `observedAt` only. No new
+  observation, identifier, link, value, or history row. A canonical value the user deleted stays
+  deleted on re-import; `lastObservedAt` stays honest via the refreshed `observedAt`.
+- **Changed** (same key, different hash): append a new observation with the full payload —
+  provenance keeps "what did the source report" per state — and auto-link it to the identity
+  that owns the prior observation for that key (new link method `source_record`, status inherited
+  from the prior link), then adopt values/conflicts/history exactly as the exact-identifier path
+  does.
+- **Absent**: today's reconciliation (identifier match → auto/proposed; exactly one name match →
+  proposed; otherwise new identity).
+
+Fingerprint keys never collapse records without at least one identifier (two name-only "Dad"
+records stay two observations). `record_key` is scoped to `(user_id, kind)` — two WhatsApp
+accounts would share one namespace (known limitation). Migration 0005 backfills `record_key` for
+existing `external_id` rows; legacy rows without a hash compare their payload once on the next
+sighting, then hash going forward.
+
+**Why:** every re-import previously appended observation + identifiers + link + `observed` event
+per contact (~14 rows written, index-amplified — a 493-contact re-scan wrote ~7k rows and read
+~150k), so a development day of scans exhausted the Free plan and failed a release deploy.
+
+**Rejected:** no dedupe (the status quo); overwriting the observation row for changed states
+(loses the prior payload — the source's story must stay per state); fingerprint-dedupe without
+identifiers (risks collapsing distinct people); a separate `source_records` table (two nullable
+columns + one index already carry the property).
+
+**Confirmed by user:** 2026-10-03 (same plan approval).
