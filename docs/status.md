@@ -15,8 +15,9 @@ rule 4. Keep exactly one phase `in progress`.
 
 ## Current handoff
 
-**Phase:** post-launch iteration — **v1.2.3 release in progress** (D-023/D-024 merged to `dev` in
-#51–#53; release PR dev → main open).
+**Phase:** post-launch iteration — **v1.3.0 released and deployed** (contacts list search, filters,
+and sorting — D-025; deploys ran via the emergency path — Workers Builds is producing no builds,
+dashboard check outstanding).
 
 **Done since v1.0.0:** chunked/resumable imports (D-018); personal-only access with admin
 approvals (D-019); store prep — connector icons + popup UX, privacy page, listing copy; phone
@@ -27,8 +28,10 @@ for the app and the site, with the owner credited (D-022, #42); the promo site p
 beta (no store links until the public launch); the product Worker recovered to the v1.2.2 build
 after its v1.2.1 and v1.2.2 builds failed at the D1 migration gate during the quota exhaustion
 (manual deploy, 2026-10-03); D1 import-efficiency work (D-023/D-024): the audit, migration 0005,
-batched scan-free reconciliation, and source-record idempotency — merged to `dev` in #51–#53;
-release v1.2.3 in progress.
+batched scan-free reconciliation, and source-record idempotency — released as v1.2.3 and deployed
+via the emergency path (Workers Builds produced no builds for the release); contacts list rebuilt
+with client-side search, filters, and sorting (D-025, #58) — released as v1.3.0, same deploy
+situation.
 
 **Verified (2026-10-02):** live `/api/health` ok; a real session scan pushed **493 unique
 contacts** (every externalId `@c.us`, no duplicates, Meta AI and self absent); `pnpm check` green
@@ -51,12 +54,17 @@ queries use the intended tenant-scoped indexes (`EXPLAIN QUERY PLAN` assertions)
 codes, extension tokens, and sessions wiped; accounts, memberships, and the migration ledger kept
 (pre-wipe Time Travel bookmark recorded).
 
+**Verified (2026-10-03, v1.3.0):** release workflow green (tag + GitHub release `v1.3.0`); product
+deployed manually as `a8df0ecb` — the served bundle (`index-CMMuLFX2.js`, was `index-D4MjaH10.js`)
+contains the new contacts UI and `/api/health` is ok; `pnpm check` green with 84 Workers-pool
+tests on the contacts-list PR.
+
 **Blocked by:** nothing.
 
-**Next action:** verify the v1.2.3 deploy once the release PR merges — migrations 0005/0006
-applied — then re-pair the extension and run the first real import, checking its `stats` line
-(rows read/written, unchanged/updated) against the old ~150k-read re-scan. Then the shipping
-backlog (rate limiting + pricing, public launch).
+**Next action:** re-pair the extension and run the first real import — check its `stats` line
+(rows read/written, unchanged/updated) against the old ~150k-read re-scan — then check the Workers
+Builds dashboard for why the v1.2.3/v1.3.0 pushes produced no builds (deploys fell back to the
+emergency path). Then the shipping backlog (rate limiting + pricing, public launch).
 
 ---
 
