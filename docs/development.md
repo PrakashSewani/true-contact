@@ -20,7 +20,7 @@ pnpm --filter @truecontact/product build         # creates dist/web — wrangler
 | Command | What it does |
 |---|---|
 | `pnpm check` | typecheck + lint + tests + build across all packages — the command that must pass before anything is "done" |
-| `pnpm typecheck` | `tsc` for `shared`/`product`/`extension` (`wrangler types` and `wxt prepare` run first), `astro check` for the site |
+| `pnpm typecheck` | `tsc` for `shared`/`ui`/`product`/`extension` (`wrangler types` and `wxt prepare` run first), `astro check` for the site |
 | `pnpm lint` / `pnpm lint:fix` | Biome check (with safe fixes) |
 | `pnpm test` | Vitest in the Workers pool — product only |
 | `pnpm build` | Vite + Worker bundle (product), WXT MV3 (extension), Astro static output (site) |
