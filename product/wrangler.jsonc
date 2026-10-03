@@ -11,7 +11,7 @@
     }
   ],
   "vars": {
-    "IMPORT_CHUNK_SIZE": "5"
+    "IMPORT_CHUNK_SIZE": "30"
   },
   "assets": {
     "binding": "ASSETS",

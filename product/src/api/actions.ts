@@ -2,7 +2,11 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
 import * as schema from '../db/schema';
-import { normalizeEmailForMatch, normalizePhoneForMatch } from '../domain/matching';
+import {
+  normalizeEmailForMatch,
+  normalizeNameForMatch,
+  normalizePhoneForMatch,
+} from '../domain/matching';
 import {
   adoptValues,
   createIdentityFromObservation,
@@ -186,7 +190,11 @@ actionRoutes.post('/api/conflicts/:id/resolve', async (c) => {
   if (resolvedValue !== null && identity && identity.displayName !== resolvedValue) {
     await db
       .update(schema.identities)
-      .set({ displayName: resolvedValue, updatedAt: now })
+      .set({
+        displayName: resolvedValue,
+        normalizedName: normalizeNameForMatch(resolvedValue),
+        updatedAt: now,
+      })
       .where(eq(schema.identities.id, identity.id));
     await recordEvent(
       db,
@@ -400,6 +408,7 @@ actionRoutes.post('/api/contacts/:id/split', async (c) => {
     id: identityId,
     userId: user.id,
     displayName: name,
+    normalizedName: normalizeNameForMatch(name),
     createdAt: now,
     updatedAt: now,
   });
@@ -477,7 +486,7 @@ actionRoutes.patch('/api/contacts/:id', async (c) => {
     if (next !== identity.displayName) {
       await db
         .update(schema.identities)
-        .set({ displayName: next, updatedAt: now })
+        .set({ displayName: next, normalizedName: normalizeNameForMatch(next), updatedAt: now })
         .where(eq(schema.identities.id, identity.id));
       await recordEvent(db, context, identity.id, 'value_changed', null, {
         field: 'display_name',

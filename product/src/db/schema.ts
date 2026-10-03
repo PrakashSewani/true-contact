@@ -151,6 +151,7 @@ export const observations = sqliteTable(
   },
   (table) => [
     index('observations_import_id_idx').on(table.importId),
+    index('observations_import_external_idx').on(table.userId, table.importId, table.externalId),
     index('observations_record_key_idx').on(table.userId, table.recordKey, table.createdAt),
   ],
 );
