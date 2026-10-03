@@ -562,6 +562,11 @@ locally, in the user's own already-open browser session; everything else in D-01
 
 **Confirmed by user:** 2026-10-02 (chose the WA-JS upgrade over session-based libraries).
 
+**Refinement (2026-10-02):** the connector pushes the **saved address book only**
+(`WPP.contact.list({ onlyMyContacts: true })`), folds the duplicate `@lid`/`@c.us` records into
+one per phone number, and skips Meta AI (`13135550002@c.us`) and the account's own card. The
+verbose console diagnostics used while debugging capture were removed once verified (PR #41).
+
 ## D-021: Personal stage — no import limits
 
 **Date:** 2026-10-02
@@ -613,3 +618,7 @@ HTML; only explicitly hydrated islands ship JS); the app bundle grows with MUI (
 
 **Confirmed by user:** 2026-10-02 (chose "MUI" for the app and "React islands in Astro" for the
 site when asked).
+
+**Implementation note:** Astro renders framework components as independent React roots, so a
+parent `ThemeProvider` cannot pass context into component children — the shared button therefore
+bundles the provider with itself (`ThemedButton`), keeping static usage zero-hydration.

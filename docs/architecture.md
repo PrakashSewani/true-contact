@@ -26,7 +26,7 @@ adapter internals — the extension is one source adapter, not a dependency of t
 | Auth | `product/src/api/auth.ts` | better-auth on D1, email + password; email verification is deferred until an email provider exists |
 | Domain | `product/src/domain` | Pure contact logic: normalization, matching helpers, vCard/CSV parsing, vCard/CSV export rendering |
 | Database | `product/src/db/schema.ts` | Drizzle schema: auth tables plus the contact graph (identities, observations, links, conflicts, history, pairing) |
-| Import pipeline | `product/src/imports` + `IMPORTS_QUEUE` consumer | Intake, chunked reconciliation against the graph, limit enforcement |
+| Import pipeline | `product/src/imports` + `IMPORTS_QUEUE` consumer | Intake, chunked reconciliation against the graph, usage accounting (no limits in the personal stage — D-021) |
 | Raw imports | `IMPORTS_BUCKET` (R2) | Temporary raw payloads; minimized retention, never the canonical store |
 | WhatsApp connector | `extension/` | Captures legitimately available WhatsApp Web contact data and pushes normalized batches |
 | Shared UI | `ui/` | MUI theme + components (buttons, fields) consumed by both the app and the promo site (D-022) |
@@ -49,8 +49,8 @@ Bindings in `product/wrangler.jsonc`: `DB` (D1), `IMPORTS_BUCKET` (R2), `IMPORTS
    automatically (with provenance); the user confirms merges, splits, and conflict resolutions —
    every overwrite is an explicit user action and appends a history event (actor + timestamp).
 5. Exports render the canonical graph as vCard/CSV.
-6. Usage operations are counted per account; free-tier limits are enforced from configuration
-   (no billing in v1).
+6. Usage operations are counted per account as a running total (no limits are enforced in the
+   personal stage — D-021; rate limiting is deferred to official shipping).
 
 ## Domain model
 
@@ -109,6 +109,8 @@ the pairing tables (`pairing_codes`, `extension_tokens`) — D-011.
   `scripts/release.mjs` (bumps the root `package.json` version and opens a new CHANGELOG section),
   runs `pnpm check`, commits the bump, tags `v<version>`, pushes, and publishes a GitHub release.
   A merge without a release label publishes nothing.
+- After each release, a `main` → `dev` sync PR (branch `sync/main-after-<version>`) brings the
+  version bump and changelog section back into `dev`, keeping the next release's notes honest.
 - The push to `main` authenticates with a repository-scoped deploy key (`truecontact-release`,
   write access) stored as the `RELEASE_DEPLOY_KEY` Actions secret — see `docs/decisions.md` D-005.
 - Merges to `main` deploy both Workers through Cloudflare Workers Builds (root directories
