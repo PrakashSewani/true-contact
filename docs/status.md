@@ -26,7 +26,9 @@ Meta AI + the account's own card filtered; console diagnostics removed (#41); on
 for the app and the site, with the owner credited (D-022, #42); the promo site presents the closed
 beta (no store links until the public launch); the product Worker recovered to the v1.2.2 build
 after its v1.2.1 and v1.2.2 builds failed at the D1 migration gate during the quota exhaustion
-(manual deploy, 2026-10-03).
+(manual deploy, 2026-10-03); D1 import-efficiency work (D-023/D-024): the audit, migration 0005,
+batched scan-free reconciliation, and source-record idempotency — slice 1 merged (#51), slices 2
+(#52) and 3 in review.
 
 **Verified (2026-10-02):** live `/api/health` ok; a real session scan pushed **493 unique
 contacts** (every externalId `@c.us`, no duplicates, Meta AI and self absent); `pnpm check` green
@@ -39,11 +41,18 @@ closed-beta copy (no Chrome links, apply-for-access CTAs).
 (`index-D9O31UDi.js`, was `index-C8KDKltO.js`) with `/api/health` ok; the promo site serves the
 closed-beta copy; remote D1 reports no pending migrations.
 
+**Verified (2026-10-03, D1 stack):** `pnpm check` green with 78 Workers-pool tests. Budget tests
+observe a 60-contact fresh slice within ≤ 50 statements / ≤ 1.6k rows written, an unchanged
+60-contact re-import within ≤ 10 statements / ≤ 120 rows written and zero new
+observations/links/events, and a redelivered slice at 1 statement / 0 rows written; candidate
+queries use the intended tenant-scoped indexes (`EXPLAIN QUERY PLAN` assertions).
+
 **Blocked by:** nothing.
 
-**Next action:** start the D1 import-efficiency work (plan approved 2026-10-03): PR 1/3 adds
-D-023/D-024 and migration 0005, then the batched reconciliation and source-record idempotency
-slices; the shipping backlog (rate limiting + pricing, public launch) follows.
+**Next action:** review and merge the remaining D1 slices — PR 2 (#52) and its stacked
+`imports/idempotent-imports` PR — then cut a release so the pipeline lands; after the first real
+import, check its `stats` line (rows read/written, unchanged/updated) against the old
+~150k-read re-scan. Then the shipping backlog (rate limiting + pricing, public launch).
 
 ---
 
