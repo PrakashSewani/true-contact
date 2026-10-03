@@ -94,6 +94,17 @@ export interface ImportStats {
   proposed?: number;
   conflicts?: number;
   skipped?: number;
+  unchanged?: number;
+  updated?: number;
+  observations?: number;
+  values?: number;
+  events?: number;
+  slices?: number;
+  durationMs?: number;
+  statements?: number;
+  roundTrips?: number;
+  rowsRead?: number;
+  rowsWritten?: number;
 }
 
 export const imports = sqliteTable(
@@ -241,7 +252,7 @@ export const identityLinks = sqliteTable(
       .references(() => observations.id, { onDelete: 'cascade' }),
     confidence: real('confidence').notNull(),
     method: text('method', {
-      enum: ['exact_identifier', 'name_similarity', 'manual', 'new_identity'],
+      enum: ['exact_identifier', 'name_similarity', 'source_record', 'manual', 'new_identity'],
     }).notNull(),
     status: text('status', { enum: ['auto', 'proposed', 'confirmed', 'rejected'] }).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

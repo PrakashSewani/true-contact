@@ -1,4 +1,4 @@
-import type { NormalizedContact } from '@truecontact/shared';
+import type { NormalizedContact, SourceKind } from '@truecontact/shared';
 import { importBatchSchema } from '@truecontact/shared';
 import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
@@ -6,7 +6,7 @@ import * as schema from '../db/schema';
 import { parseCsv } from '../domain/parse-csv';
 import { parseVCard } from '../domain/parse-vcard';
 import type { Db } from './graph';
-import { reconcileSlice } from './reconcile';
+import { reconcileSlice, type SliceOutcome } from './reconcile';
 
 type ImportRow = typeof schema.imports.$inferSelect;
 
@@ -14,6 +14,7 @@ const DEFAULT_CHUNK_SIZE = 30;
 const MAX_CHUNK_SIZE = 200;
 
 interface SlicePayload {
+  kind: SourceKind;
   contacts: NormalizedContact[];
   total: number;
   skipped: number;
@@ -97,7 +98,7 @@ async function loadSlice(
     const slice = all.slice(cursor, cursor + size);
 
     if (slice.length === 0) {
-      return { contacts: [], total: all.length, skipped: 0 };
+      return { kind: 'whatsapp', contacts: [], total: all.length, skipped: 0 };
     }
 
     const batch = importBatchSchema.safeParse({ source: 'whatsapp', contacts: slice });
@@ -105,7 +106,7 @@ async function loadSlice(
       throw new Error('invalid whatsapp batch payload');
     }
 
-    return { contacts: batch.data.contacts, total: all.length, skipped: 0 };
+    return { kind: 'whatsapp', contacts: batch.data.contacts, total: all.length, skipped: 0 };
   }
 
   const observedAt = job.createdAt.toISOString();
@@ -113,9 +114,31 @@ async function loadSlice(
     source.kind === 'csv' ? parseCsv(text, { observedAt }) : parseVCard(text, { observedAt });
 
   return {
+    kind: source.kind,
     contacts: parsed.contacts.slice(cursor, cursor + size),
     total: parsed.contacts.length,
     skipped: parsed.skipped.length,
+  };
+}
+
+function mergeStats(
+  previous: schema.ImportStats | null | undefined,
+  outcome: SliceOutcome,
+): schema.ImportStats {
+  const base = previous ?? {};
+
+  return {
+    ...base,
+    unchanged: (base.unchanged ?? 0) + outcome.unchanged,
+    updated: (base.updated ?? 0) + outcome.updated,
+    observations: (base.observations ?? 0) + outcome.observations,
+    values: (base.values ?? 0) + outcome.values,
+    events: (base.events ?? 0) + outcome.events,
+    slices: (base.slices ?? 0) + 1,
+    statements: (base.statements ?? 0) + outcome.metrics.statements,
+    roundTrips: (base.roundTrips ?? 0) + outcome.metrics.roundTrips,
+    rowsRead: (base.rowsRead ?? 0) + outcome.metrics.rowsRead,
+    rowsWritten: (base.rowsWritten ?? 0) + outcome.metrics.rowsWritten,
   };
 }
 
@@ -124,9 +147,16 @@ async function runSlice(env: Env, db: Db, job: ImportRow, cursor: number): Promi
   const contacts = payload.contacts;
   const nextCursor = cursor + contacts.length;
   const done = nextCursor >= payload.total;
+  let stats = job.stats ?? undefined;
 
   if (contacts.length > 0) {
-    const outcome = await reconcileSlice(env, db, { job, contacts, now: new Date() });
+    const outcome = await reconcileSlice(env, db, {
+      job,
+      sourceKind: payload.kind,
+      contacts,
+      now: new Date(),
+    });
+    stats = mergeStats(job.stats, outcome);
 
     console.log(
       JSON.stringify({
@@ -134,11 +164,16 @@ async function runSlice(env: Env, db: Db, job: ImportRow, cursor: number): Promi
         importId: job.id,
         cursor,
         contacts: contacts.length,
-        skipped: outcome.skipped,
+        alreadyProcessed: outcome.skipped,
+        unchanged: outcome.unchanged,
+        updated: outcome.updated,
         created: outcome.created,
         linked: outcome.linked,
         proposed: outcome.proposed,
         conflicts: outcome.conflicts,
+        observations: outcome.observations,
+        values: outcome.values,
+        events: outcome.events,
         roundTrips: outcome.metrics.roundTrips,
         statements: outcome.metrics.statements,
         rowsRead: outcome.metrics.rowsRead,
@@ -152,14 +187,14 @@ async function runSlice(env: Env, db: Db, job: ImportRow, cursor: number): Promi
   if (!done) {
     await db
       .update(schema.imports)
-      .set({ cursor: nextCursor, total: payload.total, progressAt: now })
+      .set({ cursor: nextCursor, total: payload.total, progressAt: now, stats: stats ?? null })
       .where(eq(schema.imports.id, job.id));
     await env.IMPORTS_QUEUE.send({ importId: job.id, cursor: nextCursor });
 
     return;
   }
 
-  const stats = await finalize(db, job, payload, now);
+  const finalStats = await finalize(db, job, payload, now, stats);
 
   await db
     .update(schema.imports)
@@ -168,7 +203,7 @@ async function runSlice(env: Env, db: Db, job: ImportRow, cursor: number): Promi
       cursor: nextCursor,
       total: payload.total,
       progressAt: now,
-      stats,
+      stats: finalStats,
       finishedAt: now,
     })
     .where(eq(schema.imports.id, job.id));
@@ -179,6 +214,7 @@ async function finalize(
   job: ImportRow,
   payload: SlicePayload,
   now: Date,
+  counters: schema.ImportStats | undefined,
 ): Promise<schema.ImportStats> {
   const linkRows = await db
     .select({
@@ -235,12 +271,14 @@ async function finalize(
   }
 
   return {
+    ...(counters ?? {}),
     contacts: payload.total,
     created,
     linked,
     proposed,
     conflicts: conflictRow?.count ?? 0,
     skipped: payload.skipped,
+    durationMs: now.getTime() - job.createdAt.getTime(),
   };
 }
 

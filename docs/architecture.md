@@ -69,7 +69,8 @@ creates the graph:
 - `observation_identifiers` — indexed normalized phone/email per observation (migration 0001);
   the import pipeline no longer writes it (D-023) — blocking reads use `identity_values`, and
   the identifiers remain in the observation payload.
-- `identity_links` — observation ↔ identity; confidence, method, status
+- `identity_links` — observation ↔ identity; confidence, method
+  (`exact_identifier` | `name_similarity` | `source_record` | `manual` | `new_identity`), status
   (`auto | proposed | confirmed | rejected`); one identity per observation.
 - `conflicts` — competing value for a canonical field with provenance and resolution state.
 - `history_events` — append-only: actor, type, payload, timestamp.

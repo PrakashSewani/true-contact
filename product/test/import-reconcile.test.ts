@@ -64,7 +64,12 @@ describe('batched slice reconciliation', () => {
     const { job } = await seedImport(userId);
     const contacts = Array.from({ length: 60 }, (_, index) => contact(index + 1));
 
-    const first = await reconcileSlice(env, db, { job, contacts, now: NOW });
+    const first = await reconcileSlice(env, db, {
+      job,
+      sourceKind: 'whatsapp',
+      contacts,
+      now: NOW,
+    });
 
     expect(first.created).toBe(60);
     expect(first.skipped).toBe(0);
@@ -78,34 +83,52 @@ describe('batched slice reconciliation', () => {
       .where(eq(schema.identities.userId, userId));
     expect(identities).toHaveLength(60);
 
-    const retry = await reconcileSlice(env, db, { job, contacts, now: NOW });
+    const retry = await reconcileSlice(env, db, {
+      job,
+      sourceKind: 'whatsapp',
+      contacts,
+      now: NOW,
+    });
 
     expect(retry.skipped).toBe(60);
     expect(retry.metrics.rowsWritten).toBe(0);
     expect(retry.metrics.statements).toBeLessThanOrEqual(3);
   });
 
-  it('re-importing unchanged contacts costs O(T), not O(T x graph)', async () => {
+  it('re-importing unchanged contacts stays O(T): one refresh per contact', async () => {
     const { userId } = await registerUser();
     const first = await seedImport(userId);
     const contacts = Array.from({ length: 60 }, (_, index) => contact(index + 1));
 
-    await reconcileSlice(env, db, { job: first.job, contacts, now: NOW });
+    await reconcileSlice(env, db, { job: first.job, sourceKind: 'whatsapp', contacts, now: NOW });
 
     const second = await seedImport(userId);
-    const rerun = await reconcileSlice(env, db, { job: second.job, contacts, now: NOW });
+    const rerun = await reconcileSlice(env, db, {
+      job: second.job,
+      sourceKind: 'whatsapp',
+      contacts,
+      now: NOW,
+    });
 
+    expect(rerun.unchanged).toBe(60);
+    expect(rerun.updated).toBe(0);
     expect(rerun.created).toBe(0);
-    expect(rerun.linked).toBe(60);
-    expect(rerun.metrics.statements).toBeLessThanOrEqual(50);
-    expect(rerun.metrics.rowsRead).toBeLessThanOrEqual(900);
-    expect(rerun.metrics.rowsWritten).toBeLessThanOrEqual(900);
+    expect(rerun.observations).toBe(0);
+    expect(rerun.metrics.statements).toBeLessThanOrEqual(10);
+    expect(rerun.metrics.rowsRead).toBeLessThanOrEqual(600);
+    expect(rerun.metrics.rowsWritten).toBeLessThanOrEqual(120);
 
     const identities = await db
       .select()
       .from(schema.identities)
       .where(eq(schema.identities.userId, userId));
     expect(identities).toHaveLength(60);
+
+    const observations = await db
+      .select()
+      .from(schema.observations)
+      .where(eq(schema.observations.userId, userId));
+    expect(observations).toHaveLength(60);
   });
 
   it('proposes name matches for identities whose normalized name was never stored', async () => {
@@ -123,6 +146,7 @@ describe('batched slice reconciliation', () => {
     const { job } = await seedImport(userId);
     const outcome = await reconcileSlice(env, db, {
       job,
+      sourceKind: 'whatsapp',
       contacts: [
         {
           externalId: 'wa-900',

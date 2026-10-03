@@ -1,5 +1,5 @@
-import type { NormalizedContact } from '@truecontact/shared';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import type { NormalizedContact, SourceKind } from '@truecontact/shared';
+import { and, desc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { chunk, ID_BATCH_SIZE } from '../db/batch';
 import * as schema from '../db/schema';
 import {
@@ -8,9 +8,11 @@ import {
   normalizePhoneForMatch,
 } from '../domain/matching';
 import { type ContactValue, contactValues, planAdoption, valueKey } from '../domain/reconcile';
+import { canonicalRecordState, recordIdentity, sha256Hex } from '../domain/record';
 import type { Db, HistoryType } from './graph';
 
 type ImportRow = typeof schema.imports.$inferSelect;
+type LinkStatus = (typeof schema.identityLinks.$inferSelect)['status'];
 
 interface Statement {
   toSQL(): { sql: string; params: unknown[] };
@@ -25,6 +27,8 @@ export interface SliceMetrics {
 
 export interface SliceOutcome {
   skipped: number;
+  unchanged: number;
+  updated: number;
   created: number;
   linked: number;
   proposed: number;
@@ -44,19 +48,30 @@ interface IdentityContext {
   conflictValues: Set<string>;
 }
 
+interface PriorRecord {
+  id: string;
+  hash: string | null;
+  identityId: string | null;
+  status: LinkStatus | null;
+  confidence: number | null;
+}
+
 const MAX_QUERY_PARAMS = 100;
 const BACKFILL_LIMIT = 25;
+const KEY_BACKFILL_LIMIT = 25;
 
 export async function reconcileSlice(
   env: Env,
   db: Db,
-  params: { job: ImportRow; contacts: NormalizedContact[]; now: Date },
+  params: { job: ImportRow; sourceKind: SourceKind; contacts: NormalizedContact[]; now: Date },
 ): Promise<SliceOutcome> {
-  const { job, contacts, now } = params;
+  const { job, sourceKind, contacts, now } = params;
   const { userId } = job;
   const metrics: SliceMetrics = { roundTrips: 0, statements: 0, rowsRead: 0, rowsWritten: 0 };
   const outcome: SliceOutcome = {
     skipped: 0,
+    unchanged: 0,
+    updated: 0,
     created: 0,
     linked: 0,
     proposed: 0,
@@ -75,18 +90,60 @@ export async function reconcileSlice(
     return outcome;
   }
 
-  const backfill = await readBackfillBatch(env, db, userId, metrics);
-  const blocking = await loadBlockingIdentities(env, db, userId, work, metrics);
+  const keyBackfill = await loadRecordBackfill(env, db, userId, metrics);
+  const nameBackfill = await readBackfillBatch(env, db, userId, metrics);
+  const recordInfo = await Promise.all(work.map((contact) => recordIdentity(contact, sourceKind)));
+  const prior = await loadPriorRecords(env, db, userId, recordInfo, metrics);
+
+  for (const [key, record] of keyBackfill.prior) {
+    if (!prior.has(key)) {
+      prior.set(key, record);
+    }
+  }
+
+  const unchangedIndexes = new Map<number, PriorRecord>();
+  const changedIndexes = new Map<number, PriorRecord>();
+  const freshIndexes: number[] = [];
+
+  work.forEach((contact, index) => {
+    const info = recordInfo[index];
+    const previous = info?.recordKey ? prior.get(info.recordKey) : undefined;
+
+    if (previous && previous.hash !== null && previous.hash === info?.contentHash) {
+      unchangedIndexes.set(index, previous);
+    } else if (previous && previous.identityId) {
+      changedIndexes.set(index, previous);
+    } else {
+      freshIndexes.push(index);
+    }
+  });
+
+  const freshContacts = freshIndexes.map((index) => work[index] as NormalizedContact);
+  const blocking = await loadBlockingIdentities(env, db, userId, freshContacts, metrics);
   const { names, nameMap } = await loadNameCandidates(
     env,
     db,
     userId,
-    work,
+    freshContacts,
     blocking,
-    backfill,
+    nameBackfill,
     metrics,
   );
-  const identities = await loadCandidateState(env, db, userId, blocking, names, nameMap, metrics);
+  const priorIdentityIds = dedupe(
+    [...changedIndexes.values()]
+      .map((record) => record.identityId)
+      .filter((identityId): identityId is string => identityId !== null),
+  );
+  const identities = await loadCandidateState(
+    env,
+    db,
+    userId,
+    blocking,
+    names,
+    nameMap,
+    priorIdentityIds,
+    metrics,
+  );
 
   const identityRows: (typeof schema.identities.$inferInsert)[] = [];
   const observationRows: (typeof schema.observations.$inferInsert)[] = [];
@@ -95,6 +152,10 @@ export async function reconcileSlice(
   const conflictRows: (typeof schema.conflicts.$inferInsert)[] = [];
   const eventRows: (typeof schema.historyEvents.$inferInsert)[] = [];
   const noteRows: { id: string; notes: string }[] = [];
+  const refreshGroups = new Map<
+    string,
+    { observedAt: string; entries: { id: string; contentHash: string }[] }
+  >();
 
   const addEvent = (
     identityId: string,
@@ -186,7 +247,26 @@ export async function reconcileSlice(
     }
   };
 
-  for (const contact of work) {
+  for (const [index, contact] of work.entries()) {
+    const info = recordInfo[index];
+
+    if (info === undefined) {
+      continue;
+    }
+
+    const unchangedRecord = unchangedIndexes.get(index);
+
+    if (unchangedRecord) {
+      const group = refreshGroups.get(contact.observedAt) ?? {
+        observedAt: contact.observedAt,
+        entries: [],
+      };
+      group.entries.push({ id: unchangedRecord.id, contentHash: info.contentHash });
+      refreshGroups.set(contact.observedAt, group);
+      outcome.unchanged += 1;
+      continue;
+    }
+
     const observationId = crypto.randomUUID();
 
     observationRows.push({
@@ -195,6 +275,8 @@ export async function reconcileSlice(
       importId: job.id,
       sourceId: job.sourceId,
       externalId: contact.externalId ?? null,
+      recordKey: info.recordKey,
+      contentHash: info.contentHash,
       displayName: contact.displayName,
       normalizedName: normalizeNameForMatch(contact.displayName),
       notes: contact.notes ?? null,
@@ -203,6 +285,38 @@ export async function reconcileSlice(
       createdAt: now,
     });
     outcome.observations += 1;
+
+    const changedRecord = changedIndexes.get(index);
+    const priorIdentityId =
+      changedRecord?.identityId && identities.has(changedRecord.identityId)
+        ? changedRecord.identityId
+        : undefined;
+
+    if (priorIdentityId) {
+      const proposed = changedRecord?.status === 'proposed';
+
+      linkRows.push({
+        id: crypto.randomUUID(),
+        userId,
+        identityId: priorIdentityId,
+        observationId,
+        confidence: proposed ? (changedRecord?.confidence ?? 0.5) : 1,
+        method: 'source_record',
+        status: proposed ? 'proposed' : 'auto',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      if (proposed) {
+        outcome.proposed += 1;
+      } else {
+        applyAdoption(priorIdentityId, contact, observationId);
+        addEvent(priorIdentityId, 'observed', observationId, { sourceId: job.sourceId });
+        outcome.updated += 1;
+      }
+
+      continue;
+    }
 
     const counts = new Map<string, number>();
 
@@ -314,8 +428,36 @@ export async function reconcileSlice(
     outcome.identities += 1;
   }
 
+  const refreshStatements: Statement[] = [];
+
+  for (const group of refreshGroups.values()) {
+    for (const batch of chunk(group.entries, Math.floor((MAX_QUERY_PARAMS - 2) / 3))) {
+      const cases = batch.map((entry) => sql`when ${entry.id} then ${entry.contentHash}`);
+
+      refreshStatements.push(
+        db
+          .update(schema.observations)
+          .set({
+            observedAt: new Date(group.observedAt),
+            contentHash: sql`case id ${sql.join(cases, sql` `)} else content_hash end`,
+          })
+          .where(
+            and(
+              eq(schema.observations.userId, userId),
+              inArray(
+                schema.observations.id,
+                batch.map((entry) => entry.id),
+              ),
+            ),
+          ),
+      );
+    }
+  }
+
   const statements: Statement[] = [
-    ...buildBackfillStatements(db, userId, backfill),
+    ...keyBackfill.statements,
+    ...buildNameBackfillStatements(db, userId, nameBackfill),
+    ...refreshStatements,
     ...chunk(identityRows, Math.floor(MAX_QUERY_PARAMS / 7)).map((batch) =>
       db.insert(schema.identities).values(batch),
     ),
@@ -325,7 +467,7 @@ export async function reconcileSlice(
         .set({ notes: row.notes, updatedAt: now })
         .where(eq(schema.identities.id, row.id)),
     ),
-    ...chunk(observationRows, Math.floor(MAX_QUERY_PARAMS / 11)).map((batch) =>
+    ...chunk(observationRows, Math.floor(MAX_QUERY_PARAMS / 13)).map((batch) =>
       db.insert(schema.observations).values(batch),
     ),
     ...chunk(valueRows, Math.floor(MAX_QUERY_PARAMS / 10)).map((batch) =>
@@ -394,6 +536,190 @@ async function skipAlreadyProcessed(
   }
 
   return contacts.filter((contact) => !(contact.externalId && seen.has(contact.externalId)));
+}
+
+async function loadRecordBackfill(
+  env: Env,
+  db: Db,
+  userId: string,
+  metrics: SliceMetrics,
+): Promise<{ statements: Statement[]; prior: Map<string, PriorRecord> }> {
+  const rows = await readRows(
+    env.DB,
+    db
+      .select({
+        id: schema.observations.id,
+        externalId: schema.observations.externalId,
+        kind: schema.sources.kind,
+        payload: schema.observations.payload,
+        identityId: schema.identityLinks.identityId,
+        status: schema.identityLinks.status,
+        confidence: schema.identityLinks.confidence,
+      })
+      .from(schema.observations)
+      .innerJoin(schema.sources, eq(schema.sources.id, schema.observations.sourceId))
+      .leftJoin(
+        schema.identityLinks,
+        eq(schema.identityLinks.observationId, schema.observations.id),
+      )
+      .where(
+        and(
+          eq(schema.observations.userId, userId),
+          isNull(schema.observations.recordKey),
+          isNotNull(schema.observations.externalId),
+          ne(schema.observations.externalId, ''),
+        ),
+      )
+      .limit(KEY_BACKFILL_LIMIT),
+    metrics,
+  );
+
+  const prior = new Map<string, PriorRecord>();
+  const entries: { id: string; recordKey: string }[] = [];
+
+  for (const row of rows) {
+    const recordKey = `${row.kind as string}:x:${row.external_id as string}`;
+    entries.push({ id: row.id as string, recordKey });
+    prior.set(recordKey, {
+      id: row.id as string,
+      hash: typeof row.payload === 'string' ? await hashPayload(row.payload) : null,
+      identityId: (row.identity_id as string | null) ?? null,
+      status: (row.status as LinkStatus | null) ?? null,
+      confidence: (row.confidence as number | null) ?? null,
+    });
+  }
+
+  const statements: Statement[] = [];
+
+  for (const batch of chunk(entries, Math.floor((MAX_QUERY_PARAMS - 1) / 3))) {
+    const cases = batch.map((entry) => sql`when ${entry.id} then ${entry.recordKey}`);
+
+    statements.push(
+      db
+        .update(schema.observations)
+        .set({
+          recordKey: sql`case id ${sql.join(cases, sql` `)} else record_key end`,
+        })
+        .where(
+          and(
+            eq(schema.observations.userId, userId),
+            inArray(
+              schema.observations.id,
+              batch.map((entry) => entry.id),
+            ),
+          ),
+        ),
+    );
+  }
+
+  return { statements, prior };
+}
+
+async function loadPriorRecords(
+  env: Env,
+  db: Db,
+  userId: string,
+  recordInfo: { recordKey: string | null }[],
+  metrics: SliceMetrics,
+): Promise<Map<string, PriorRecord>> {
+  const keys = dedupe(
+    recordInfo.map((info) => info.recordKey).filter((key): key is string => key !== null),
+  );
+  const prior = new Map<string, PriorRecord>();
+
+  if (keys.length === 0) {
+    return prior;
+  }
+
+  for (const batch of chunk(keys, ID_BATCH_SIZE)) {
+    const rows = await readRows(
+      env.DB,
+      db
+        .select({
+          id: schema.observations.id,
+          recordKey: schema.observations.recordKey,
+          contentHash: schema.observations.contentHash,
+          identityId: schema.identityLinks.identityId,
+          status: schema.identityLinks.status,
+          confidence: schema.identityLinks.confidence,
+        })
+        .from(schema.observations)
+        .leftJoin(
+          schema.identityLinks,
+          eq(schema.identityLinks.observationId, schema.observations.id),
+        )
+        .where(
+          and(
+            eq(schema.observations.userId, userId),
+            inArray(schema.observations.recordKey, batch),
+          ),
+        )
+        .orderBy(desc(schema.observations.createdAt)),
+      metrics,
+    );
+
+    for (const row of rows) {
+      const key = row.record_key as string;
+
+      if (prior.has(key)) {
+        continue;
+      }
+
+      prior.set(key, {
+        id: row.id as string,
+        hash: (row.content_hash as string | null) ?? null,
+        identityId: (row.identity_id as string | null) ?? null,
+        status: (row.status as LinkStatus | null) ?? null,
+        confidence: (row.confidence as number | null) ?? null,
+      });
+    }
+  }
+
+  const legacyIds = [...prior.values()]
+    .filter((record) => record.hash === null)
+    .map((record) => record.id);
+
+  if (legacyIds.length > 0) {
+    const payloads = new Map<string, string>();
+
+    for (const batch of chunk(legacyIds, ID_BATCH_SIZE)) {
+      const rows = await readRows(
+        env.DB,
+        db
+          .select({ id: schema.observations.id, payload: schema.observations.payload })
+          .from(schema.observations)
+          .where(
+            and(eq(schema.observations.userId, userId), inArray(schema.observations.id, batch)),
+          ),
+        metrics,
+      );
+
+      for (const row of rows) {
+        if (typeof row.payload === 'string') {
+          payloads.set(row.id as string, row.payload);
+        }
+      }
+    }
+
+    for (const record of prior.values()) {
+      if (record.hash !== null) {
+        continue;
+      }
+
+      const payload = payloads.get(record.id);
+      record.hash = payload === undefined ? null : await hashPayload(payload);
+    }
+  }
+
+  return prior;
+}
+
+async function hashPayload(payload: string): Promise<string | null> {
+  try {
+    return await sha256Hex(canonicalRecordState(JSON.parse(payload) as NormalizedContact));
+  } catch {
+    return null;
+  }
 }
 
 async function readBackfillBatch(
@@ -548,9 +874,10 @@ async function loadCandidateState(
   blocking: Map<string, string[]>,
   names: string[],
   nameMap: Map<string, string[]>,
+  extraIds: string[],
   metrics: SliceMetrics,
 ): Promise<Map<string, IdentityContext>> {
-  const candidateIds = new Set<string>();
+  const candidateIds = new Set<string>(extraIds);
 
   for (const identityIds of blocking.values()) {
     for (const identityId of identityIds) {
@@ -651,7 +978,7 @@ async function loadCandidateState(
   return identities;
 }
 
-function buildBackfillStatements(
+function buildNameBackfillStatements(
   db: Db,
   userId: string,
   backfill: Record<string, unknown>[],
