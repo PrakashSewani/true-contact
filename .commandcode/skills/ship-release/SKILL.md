@@ -60,6 +60,9 @@ version-bump commit — deploying identical code.
   listing; without them both fall back to a store search.
 - Install is explicit because the builds run inside a pnpm workspace subdirectory; Node uses the
   build image default (24.x, satisfies `engines >=22`).
+- The product deploy is migration-gated: `d1 migrations apply` runs before `wrangler deploy`, so
+  a D1 error fails the build and leaves the Worker on its previous version — while the site
+  Worker (no D1 step) deploys normally. See the failure path below.
 
 ### One-time setup (dashboard) — exercised end to end on 2026-10-02 (v1.0.0)
 
@@ -139,7 +142,10 @@ Web Store developer dashboard.
   then fix forward with a new release.
 - **Failing build:** Deployments → Build History → open the build (logs) and retry it from the
   ellipsis menu. Install failures point at `PNPM_VERSION` / lockfile drift; authorization
-  failures point at the build API token.
+  failures point at the build API token. A failure at the `d1 migrations apply` step with a D1
+  limit/quota error means the account's daily D1 limits are exhausted (they reset at 00:00 UTC;
+  observed 2026-10-02 when the v1.2.1 and v1.2.2 product builds missed this way — recovered with
+  the emergency manual deploy).
 - **Bad release:** delete the GitHub release and tag (`gh release delete v<version> --yes`,
   `git push origin :v<version>`), then re-merge a corrected release PR with the same label.
 - **Bad extension submission:** publish a fixed version to the store; no rollback path exists for

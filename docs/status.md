@@ -23,9 +23,10 @@ approvals (D-019); store prep — connector icons + popup UX, privacy page, list
 capture through WhatsApp Web's in-page store via WA-JS (D-020); the personal-stage import cap
 removed (D-021); capture corrected to the address book only, `@lid`/`@c.us` folded per phone, and
 Meta AI + the account's own card filtered; console diagnostics removed (#41); one shared UI system
-for the app and the site, with the owner credited (D-022, #42); releases v1.1.0–v1.2.1 deployed
-through Workers Builds; the promo site now presents the closed beta (no store links until the
-public launch).
+for the app and the site, with the owner credited (D-022, #42); the promo site presents the closed
+beta (no store links until the public launch); the product Worker recovered to the v1.2.2 build
+after its v1.2.1 and v1.2.2 builds failed at the D1 migration gate during the quota exhaustion
+(manual deploy, 2026-10-03).
 
 **Verified (2026-10-02):** live `/api/health` ok; a real session scan pushed **493 unique
 contacts** (every externalId `@c.us`, no duplicates, Meta AI and self absent); `pnpm check` green
@@ -33,11 +34,16 @@ on `dev`; the `v1.2.2` release workflow completed green and `main` is at `1.2.2`
 HTML carries the brand theme (`#2f6f4f` / `#6fbf94` dark) with zero hydration, and the
 closed-beta copy (no Chrome links, apply-for-access CTAs).
 
+**Verified (2026-10-03):** product Worker deployment `60addd06` is live (last pre-fix deploy
+2026-10-02 15:51 UTC; v1.2.1 shipped 18:03 UTC, v1.2.2 18:19 UTC), serving the MUI build
+(`index-D9O31UDi.js`, was `index-C8KDKltO.js`) with `/api/health` ok; the promo site serves the
+closed-beta copy; remote D1 reports no pending migrations.
+
 **Blocked by:** nothing.
 
-**Next action:** confirm the redeployed promo site shows the closed-beta copy (Workers Builds);
-then the shipping backlog — the public launch publishes the extension with the app, and rate
-limiting + pricing get designed for the public stage.
+**Next action:** start the D1 import-efficiency work (plan approved 2026-10-03): PR 1/3 adds
+D-023/D-024 and migration 0005, then the batched reconciliation and source-record idempotency
+slices; the shipping backlog (rate limiting + pricing, public launch) follows.
 
 ---
 
