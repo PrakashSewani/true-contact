@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Changed
+
+- Contact imports are reconciled in batched, idempotent slices (D-023/D-024): repeating an import
+  no longer writes duplicate observations, links, or history for unchanged contacts — they only
+  refresh when they were last seen — and a changed source record links straight to its existing
+  contact. Every import reports created/matched/updated/unchanged counts plus the D1 rows it read
+  and wrote.
+
+### Fixed
+
+- The import pipeline no longer re-scans the whole contact graph on every slice, ending the D1
+  read/write amplification that exhausted the free tier and blocked a release deploy.
+
 ## [1.2.2] - 2026-10-02
 
 ### Changed

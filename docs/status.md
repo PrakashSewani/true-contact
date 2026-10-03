@@ -15,8 +15,8 @@ rule 4. Keep exactly one phase `in progress`.
 
 ## Current handoff
 
-**Phase:** post-launch iteration — **v1.2.2 released** (tag + GitHub release published; the promo
-site's closed-beta copy redeploys through Workers Builds).
+**Phase:** post-launch iteration — **v1.2.3 release in progress** (D-023/D-024 merged to `dev` in
+#51–#53; release PR dev → main open).
 
 **Done since v1.0.0:** chunked/resumable imports (D-018); personal-only access with admin
 approvals (D-019); store prep — connector icons + popup UX, privacy page, listing copy; phone
@@ -27,8 +27,8 @@ for the app and the site, with the owner credited (D-022, #42); the promo site p
 beta (no store links until the public launch); the product Worker recovered to the v1.2.2 build
 after its v1.2.1 and v1.2.2 builds failed at the D1 migration gate during the quota exhaustion
 (manual deploy, 2026-10-03); D1 import-efficiency work (D-023/D-024): the audit, migration 0005,
-batched scan-free reconciliation, and source-record idempotency — slice 1 merged (#51), slices 2
-(#52) and 3 in review.
+batched scan-free reconciliation, and source-record idempotency — merged to `dev` in #51–#53;
+release v1.2.3 in progress.
 
 **Verified (2026-10-02):** live `/api/health` ok; a real session scan pushed **493 unique
 contacts** (every externalId `@c.us`, no duplicates, Meta AI and self absent); `pnpm check` green
@@ -47,12 +47,16 @@ observe a 60-contact fresh slice within ≤ 50 statements / ≤ 1.6k rows writte
 observations/links/events, and a redelivered slice at 1 statement / 0 rows written; candidate
 queries use the intended tenant-scoped indexes (`EXPLAIN QUERY PLAN` assertions).
 
+**Reset (2026-10-03):** production D1 was cleared for a fresh start — usage counters, pairing
+codes, extension tokens, and sessions wiped; accounts, memberships, and the migration ledger kept
+(pre-wipe Time Travel bookmark recorded).
+
 **Blocked by:** nothing.
 
-**Next action:** review and merge the remaining D1 slices — PR 2 (#52) and its stacked
-`imports/idempotent-imports` PR — then cut a release so the pipeline lands; after the first real
-import, check its `stats` line (rows read/written, unchanged/updated) against the old
-~150k-read re-scan. Then the shipping backlog (rate limiting + pricing, public launch).
+**Next action:** verify the v1.2.3 deploy once the release PR merges — migrations 0005/0006
+applied — then re-pair the extension and run the first real import, checking its `stats` line
+(rows read/written, unchanged/updated) against the old ~150k-read re-scan. Then the shipping
+backlog (rate limiting + pricing, public launch).
 
 ---
 
