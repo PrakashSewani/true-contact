@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- Contacts list: search (name, phone digits, email), filters (has phone, has email, no phone,
+  needs review), and sorting with alphabetical order by default — computed in the app with no
+  extra database reads. An "import in progress" notice replaces live refreshing while a job runs.
+
 ## [1.2.3] - 2026-10-03
 
 ### Changed
