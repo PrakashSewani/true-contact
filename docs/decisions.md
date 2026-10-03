@@ -701,3 +701,26 @@ identifiers (risks collapsing distinct people); a separate `source_records` tabl
 columns + one index already carry the property).
 
 **Confirmed by user:** 2026-10-03 (same plan approval).
+
+## D-025: Contacts list — client-side search, filter, and sort
+
+**Date:** 2026-10-03
+
+**Decision:** The contacts list fetches one page of contacts (the API's 500 cap) and performs
+search (name, phone digits, email), filtering (all / phone / email / no phone / needs review),
+and sorting in the app — alphabetical by display name by default. Interacting with the list costs
+zero extra D1 queries: the fetch happens once per page view or explicit Refresh. While an import
+is pending or processing, the page shows a one-shot notice instead of polling or live-updating
+the list. If the graph outgrows the 500 cap, the list shows the most recently updated 500 and
+says so; server-side pagination/search would be a new decision then.
+
+**Why:** the user asked for search/filter/sort without adding database strain — the dataset is a
+personal contact book (hundreds), so client-side computation is instant and free, while
+per-keystroke or per-poll queries would reintroduce the amplification D-023/D-024 removed.
+
+**Rejected:** server-side search/sort with per-keystroke queries (D1 strain, latency); polling
+import status from the contacts page (the imports page owns progress; a static notice suffices —
+the user asked for an indicator, not live updates).
+
+**Confirmed by user:** 2026-10-03 ("enhance the contacts screen for app… lets do such operations
+in ui so that there is no strain on dbs… if import is in progress show an indicator").

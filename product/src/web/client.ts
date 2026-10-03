@@ -155,7 +155,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 export const api = {
   me: () => request<Me>('/api/me'),
-  contacts: () => request<{ contacts: ContactSummary[] }>('/api/contacts'),
+  contacts: (limit?: number) =>
+    request<{ contacts: ContactSummary[] }>(
+      limit ? `/api/contacts?limit=${limit}` : '/api/contacts',
+    ),
   contact: (id: string) => request<{ contact: ContactDetail }>(`/api/contacts/${id}`),
   review: () =>
     request<{ conflicts: ReviewConflict[]; proposals: ReviewProposal[] }>('/api/review'),
